@@ -1,0 +1,42 @@
+{
+  "name": "voxrack",
+  "productName": "VoxRack",
+  "version": "1.7.0",
+  "description": "VoxRack voice changer with audio hardware and driver manager",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis portable --x64"
+  },
+  "keywords": [],
+  "author": "VoxRack",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "app.voxrack.desktop",
+    "productName": "VoxRack",
+    "copyright": "VoxRack",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["main.js", "preload.js", "app/**/*", "build/icon.png"],
+    "win": {
+      "icon": "build/icon.png",
+      "artifactName": "VoxRack-${version}-${arch}-${target}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "VoxRack",
+      "artifactName": "VoxRack-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "VoxRack-Portable-${version}.${ext}"
+    }
+  }
+}

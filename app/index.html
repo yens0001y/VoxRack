@@ -1,0 +1,1230 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VoxRack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+/* Layout: ชั้นวางอุปกรณ์เสียง — preset ซ้าย, โมดูลเรียงตามลำดับสัญญาณตรงกลาง, จอ/เครื่องอัดขวา */
+:root{
+  --bg:#14171b; --panel:#1e2227; --panel2:#262b31; --line:#353b43; --ink:#e6e2d9; --dim:#8d929a;
+  --amber:#f0a23b; --amber-dim:#5a4122; --red:#e2483d; --green:#6fbf73; --lcd:#17130b;
+  --f-disp:"Chakra Petch","Leelawadee UI",Tahoma,sans-serif;
+  --f-body:"IBM Plex Sans Thai","Leelawadee UI",Tahoma,sans-serif;
+  --f-mono:"IBM Plex Mono",Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--f-body);}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+[hidden]{display:none!important}
+
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{font:700 20px/1 var(--f-disp);letter-spacing:.06em;display:flex;align-items:baseline;gap:8px}
+.brand small{font:500 11px var(--f-mono);color:var(--dim);letter-spacing:.04em}
+.ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:6px 12px;font-weight:500;display:inline-flex;align-items:center;gap:8px}
+.btn:hover{border-color:#4a525c}
+.btn .led{width:8px;height:8px;border-radius:50%;background:#3a3f46;box-shadow:inset 0 0 0 1px #0006}
+.btn[aria-pressed="true"] .led{background:var(--amber);box-shadow:0 0 6px var(--amber)}
+.btn.rec[aria-pressed="true"] .led{background:var(--red);box-shadow:0 0 6px var(--red)}
+.btn.main{background:var(--amber);color:#1b1206;border-color:var(--amber);font-weight:600}
+.btn.main[aria-pressed="true"]{background:var(--panel2);color:var(--ink);border-color:var(--amber)}
+select{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:5px 8px;max-width:210px}
+label.chk{display:flex;align-items:center;gap:6px;color:var(--dim);font-size:13px}
+.lcd{background:var(--lcd);border:1px solid #000;border-radius:3px;padding:4px 10px;font:500 13px var(--f-mono);color:var(--amber);box-shadow:inset 0 1px 4px #000a;white-space:nowrap}
+.lcd b{font-weight:500;color:var(--dim)}
+.status{font-size:13px;color:var(--dim);flex:1 1 200px;min-width:0}
+.status.err{color:var(--red)}
+
+.grid{display:grid;grid-template-columns:220px minmax(0,1fr) 330px;gap:14px;padding:14px 16px 24px;align-items:start}
+@media (max-width:1180px){.grid{grid-template-columns:200px minmax(0,1fr)}.side{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}}
+@media (max-width:720px){.grid{grid-template-columns:minmax(0,1fr)}}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px}
+.ph{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);font:600 12px var(--f-disp);letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.pb{padding:10px 12px}
+
+.plist{display:flex;flex-direction:column;gap:2px;padding:6px}
+.pr{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:1px solid transparent;border-radius:4px;padding:5px 8px}
+.pr:hover{background:var(--panel2)}
+.pr.on{background:var(--panel2);border-color:var(--amber-dim)}
+.pr.on .pn{color:var(--amber)}
+.pr kbd{font:500 11px var(--f-mono);color:var(--dim);min-width:16px}
+.pr .pn{flex:1}
+.pr .x{color:var(--dim);padding:0 4px;border:0;background:none}
+.pr .x:hover{color:var(--red)}
+.psave{display:flex;gap:6px;padding:8px 10px 10px;border-top:1px solid var(--line)}
+.psave input{flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:5px 8px}
+.sub{font:500 11px var(--f-mono);color:var(--dim);padding:8px 10px 2px;letter-spacing:.05em}
+
+.rack{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.mod{background:var(--panel);border:1px solid var(--line);border-radius:6px;display:flex;flex-direction:column}
+.mh{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--line);background:linear-gradient(#252a30,#20242a);border-radius:6px 6px 0 0}
+.mh .idx{font:500 10px var(--f-mono);color:var(--dim)}
+.mh .mn{font:600 13px var(--f-disp);letter-spacing:.04em;flex:1}
+.pwr{width:30px;height:18px;border-radius:9px;border:1px solid var(--line);background:#2d3238;position:relative;padding:0}
+.pwr::after{content:"";position:absolute;top:3px;left:3px;width:10px;height:10px;border-radius:50%;background:#555b63;transition:left .12s,background .12s}
+.pwr[aria-pressed="true"]{border-color:var(--amber-dim)}
+.pwr[aria-pressed="true"]::after{left:16px;background:var(--amber);box-shadow:0 0 6px var(--amber)}
+.mb{display:flex;flex-wrap:wrap;gap:4px 6px;padding:10px 8px 8px;justify-content:space-around}
+.mod.off .mb{opacity:.45}
+.mdesc{font-size:12px;color:var(--dim);padding:0 10px 9px;margin-top:-2px}
+.seg{display:flex;width:100%;border:1px solid var(--line);border-radius:4px;overflow:hidden;margin:0 4px 4px}
+.seg button{flex:1;border:0;background:var(--panel2);padding:3px 0;font:500 11px var(--f-mono);color:var(--dim)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--amber-dim);color:var(--amber)}
+
+.knob{display:flex;flex-direction:column;align-items:center;width:64px;user-select:none;touch-action:none;cursor:ns-resize;border-radius:4px;padding:2px 0}
+.knob svg{width:50px;height:50px}
+.k-track{fill:none;stroke:#363c44;stroke-width:4;stroke-linecap:round}
+.k-val{fill:none;stroke:var(--amber);stroke-width:4;stroke-linecap:round}
+.k-cap{fill:#2e343b;stroke:#111;stroke-width:1}
+.k-ptr{stroke:var(--ink);stroke-width:2;stroke-linecap:round}
+.k-lab{font-size:11.5px;color:var(--dim);line-height:1.2;text-align:center}
+.k-out{font:500 11px var(--f-mono);color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+.scope{width:100%;height:170px;display:block;background:var(--lcd);border-radius:3px}
+.meters{display:grid;grid-template-columns:30px 1fr 12px;gap:6px 8px;align-items:center;margin-top:10px;font:500 11px var(--f-mono);color:var(--dim)}
+.meter{height:10px;background:#0c0e10;border-radius:2px;position:relative;overflow:hidden}
+.meter i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--green) 0 70%,var(--amber) 70% 88%,var(--red) 88%)}
+.meter s{position:absolute;top:0;bottom:0;width:2px;background:var(--ink);left:0}
+.clip{width:10px;height:10px;border-radius:50%;background:#3a1a18}
+.clip.hot{background:var(--red);box-shadow:0 0 6px var(--red)}
+.scale{grid-column:2;display:flex;justify-content:space-between;font-size:10px}
+.side{display:flex;flex-direction:column;gap:14px}
+.rec-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.takes{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.takes li{display:flex;flex-direction:column;gap:4px;padding:8px;background:var(--panel2);border-radius:4px}
+.takes .tt{display:flex;justify-content:space-between;font:500 12px var(--f-mono);color:var(--dim)}
+.takes .tt a{color:var(--amber)}
+.takes audio{width:100%;height:32px}
+.empty{color:var(--dim);font-size:13px}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px;margin:0}
+.keys dt{font:500 12px var(--f-mono);color:var(--amber)}
+.keys dd{margin:0;color:var(--dim)}
+.note{font-size:12.5px;color:var(--dim);margin:8px 0 0}
+.fname{font:500 12px var(--f-mono);color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:6px}
+.center{display:flex;flex-direction:column;gap:14px;min-width:0}
+.btn.sm{padding:3px 9px;font-size:12.5px}
+.btn:disabled{opacity:.5;cursor:default}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.chip{font-size:12.5px;padding:2px 10px;border-radius:12px;background:var(--panel2);border:1px solid var(--line)}
+.chip b{font:500 12.5px var(--f-mono);color:var(--amber);margin-right:4px}
+.chip.warn{border-color:#6b3a1e;color:#f3b27a}
+.chip.bad{border-color:#6b2420;color:#f08a80}
+.chip.good{border-color:#2f5a33;color:#9fd6a2}
+.hwlist{display:flex;flex-direction:column;gap:10px}
+.hw{border:1px solid var(--line);border-radius:5px;background:var(--panel2);padding:10px 12px;min-width:0}
+.hw.gone{opacity:.55}
+.hw-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.hw-name{font-weight:600;font-size:14.5px}
+.tag{font:500 11px var(--f-mono);padding:1px 7px;border-radius:3px;background:#30363d;color:var(--ink)}
+.pill{font-size:12px;padding:1px 9px;border-radius:10px;margin-left:auto}
+.pill.ok{background:#1f3a22;color:#9fd6a2}.pill.err{background:#45201d;color:#f08a80}.pill.off{background:#2c3036;color:var(--dim)}
+.hw-dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:4px 16px;margin:8px 0 0}
+.hw-dl div{min-width:0}
+.hw-dl dt{font-size:11.5px;color:var(--dim)}
+.hw-dl dd{margin:0;font:500 12.5px var(--f-mono);overflow-wrap:anywhere;user-select:text}
+.advice{margin-top:8px;padding:6px 10px;border-radius:4px;background:#2a2318;color:#f0c98a;font-size:13px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.advice.bad{background:#2e1a18;color:#f3a198}
+.eps{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:4px}
+.eps li{display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0;border-top:1px dashed var(--line);flex-wrap:wrap}
+.eps .dir{font:500 10.5px var(--f-mono);width:30px;text-align:center;padding:1px 0;border-radius:3px;background:#30363d}
+.eps .dir.in{color:var(--green)}.eps .dir.out{color:var(--amber)}
+.eps .en{flex:1;min-width:0}
+.drv-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-top:12px}
+#gamePanel.on{border-color:var(--amber-dim)}
+.game-row{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.gseg{width:auto;margin:0;flex:1 1 340px}
+.gseg button{padding:5px 0;font:500 12.5px var(--f-body)}
+.game-knobs{justify-content:flex-start;padding:12px 0 0;gap:6px 10px}
+#gameSetup{margin:0 0 10px}
+#gameSetup ol{margin:4px 0 0;padding-left:20px}
+.eps .st{font-size:11.5px;padding:0 8px;border-radius:9px}
+.eps .st.ok{background:#1f3a22;color:#9fd6a2}.eps .st.err{background:#45201d;color:#f08a80}.eps .st.off{background:#2c3036;color:var(--dim)}
+.eps .def{font:500 10.5px var(--f-mono);color:var(--amber);border:1px solid var(--amber-dim);border-radius:3px;padding:0 5px}
+.eps .using{font:500 10.5px var(--f-mono);color:var(--green);border:1px solid #2f5a33;border-radius:3px;padding:0 5px}
+.hw-act{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.wu{margin-top:12px;border:1px solid var(--line);border-radius:5px;padding:10px 12px}
+.wu-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 12px}
+.wu-list{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.wu-list li{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:6px 8px;background:var(--panel2);border-radius:4px;font-size:13px}
+.wu-list li.match{border:1px solid var(--amber-dim)}
+.wu-list .wt{flex:1 1 260px;min-width:0}
+.wu-list .wm{font:500 11.5px var(--f-mono);color:var(--dim);display:block;overflow-wrap:anywhere}
+.wu details{margin-top:8px}
+.wu summary{cursor:pointer;color:var(--dim);font-size:13px}
+.spin{display:inline-block;width:10px;height:10px;border:2px solid var(--amber);border-right-color:transparent;border-radius:50%;animation:sp .8s linear infinite;vertical-align:-1px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
+@media (prefers-reduced-motion:reduce){.pwr::after{transition:none}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">VOXRACK <small>v1.4</small></div>
+  <div class="ctl">
+    <button class="btn main" id="micBtn" aria-pressed="false"><span class="led"></span><span id="micTxt">เปิดไมค์</span></button>
+    <select id="inSel" title="ไมโครโฟน" aria-label="ไมโครโฟน"><option value="">ไมค์เริ่มต้น</option></select>
+    <select id="outSel" title="อุปกรณ์เสียงออก" aria-label="อุปกรณ์เสียงออก"><option value="">ลำโพงเริ่มต้น</option></select>
+    <label class="chk"><input type="checkbox" id="nsChk"> ลดเสียงรบกวนของระบบ</label>
+  </div>
+  <div class="ctl">
+    <button class="btn" id="hearBtn" aria-pressed="false" title="H"><span class="led"></span>ฟังเสียงไกล</button>
+    <button class="btn" id="byBtn" aria-pressed="false" title="Space"><span class="led"></span>เสียงจริง (Bypass)</button>
+    <button class="btn" id="monBtn" aria-pressed="true" title="M"><span class="led"></span>ฟังเสียงตัวเอง</button>
+    <span class="lcd" id="latLcd"><b>LAT</b> --.- ms <b>SR</b> --</span>
+  </div>
+  <div class="status" id="status">ใส่หูฟังก่อนเปิดไมค์ ถ้าใช้ลำโพงเสียงจะหอน</div>
+</header>
+
+<main class="grid">
+  <aside class="panel">
+    <div class="ph">พรีเซ็ต <span id="presetMod" style="text-transform:none;letter-spacing:0"></span></div>
+    <div class="plist" id="plist"></div>
+    <div class="sub" id="mySub" hidden>ของฉัน</div>
+    <div class="plist" id="mylist"></div>
+    <form class="psave" id="saveForm">
+      <input id="saveName" placeholder="ตั้งชื่อเสียงนี้" maxlength="24" aria-label="ชื่อพรีเซ็ต">
+      <button class="btn" type="submit">บันทึก</button>
+    </form>
+  </aside>
+
+  <div class="center">
+  <section class="panel" id="gamePanel" aria-label="หูฟังเล่นเกม">
+    <div class="ph">หูฟังเล่นเกม · ปรับเสียงเกมก่อนเข้าหู
+      <span class="ctl" style="text-transform:none;letter-spacing:0;font-family:var(--f-body);font-weight:400">
+        <span class="lcd" id="gameLat" hidden></span>
+        <button class="btn sm main" id="gameBtn" aria-pressed="false" title="G"><span class="led"></span><span id="gameTxt">เปิดโหมดเกม</span></button>
+      </span>
+    </div>
+    <div class="pb">
+      <div class="advice" id="gameSetup" hidden></div>
+      <div class="game-row">
+        <div class="seg gseg" id="gameSeg" role="group" aria-label="โปรไฟล์เสียง"></div>
+        <label class="chk">ฟังผ่าน <select id="gameOut" aria-label="หูฟังที่ใช้ฟัง"><option value="">เลือกอัตโนมัติ</option></select></label>
+      </div>
+      <div class="mb game-knobs" id="gameKnobs"></div>
+      <p class="note" id="gameNote">เสียงเกมจะวิ่ง: เกม → CABLE Input → VoxRack (EQ เบส เสียงเท้า) → หูฟัง · ปิดโหมดเกมแล้ว Windows จะกลับไปใช้ลำโพง/หูฟังเดิมเอง</p>
+    </div>
+  </section>
+  <section class="rack" id="rack" aria-label="โมดูลเอฟเฟกต์"></section>
+
+  <section class="panel" id="drvPanel" aria-label="ฮาร์ดแวร์เสียงและไดรเวอร์">
+    <div class="ph">ฮาร์ดแวร์เสียงและไดรเวอร์
+      <span class="ctl" style="text-transform:none;letter-spacing:0;font-family:var(--f-body);font-weight:400">
+        <span id="drvInfo" class="empty"></span>
+        <button class="btn sm" id="drvScan">สแกนใหม่</button>
+      </span>
+    </div>
+    <div class="pb">
+      <div class="chips" id="drvChips"></div>
+      <div class="hwlist" id="drvList"><p class="empty">กำลังสแกนฮาร์ดแวร์…</p></div>
+      <div class="wu">
+        <div class="wu-head">
+          <div><b>หาไดรเวอร์ใหม่</b><span class="empty"> · ค้นจากแคตตาล็อก Windows Update ของเครื่องนี้ หรือติดตั้งจากไฟล์ที่โหลดจากเว็บผู้ผลิต</span></div>
+          <div class="ctl">
+            <button class="btn sm main" id="wuBtn">ค้นหาไดรเวอร์</button>
+            <button class="btn sm" id="infBtn">ติดตั้งจากไฟล์ .inf</button>
+          </div>
+        </div>
+        <div id="wuBox"></div>
+      </div>
+      <div class="drv-foot">
+        <label class="chk"><input type="checkbox" id="drvAll"> แสดงอุปกรณ์ที่ถอดออกแล้ว</label>
+        <div class="ctl">
+          <button class="btn sm" data-tool="devmgr">Device Manager</button>
+          <button class="btn sm" data-tool="sound">ตั้งค่าเสียง Windows</button>
+          <button class="btn sm" data-tool="update">Windows Update</button>
+          <button class="btn sm" data-tool="privacy">สิทธิ์ไมโครโฟน</button>
+          <button class="btn sm" id="hwRescan">ตรวจหาฮาร์ดแวร์ที่เพิ่งเสียบ</button>
+        </div>
+      </div>
+    </div>
+  </section>
+  </div>
+
+  <aside class="side">
+    <div class="panel">
+      <div class="ph">สัญญาณ <span id="peakTxt" style="font-family:var(--f-mono);letter-spacing:0">-∞ dB</span></div>
+      <div class="pb">
+        <canvas class="scope" id="scope"></canvas>
+        <div class="meters">
+          <span>IN</span><div class="meter"><i id="mIn"></i><s id="hIn"></s></div><span class="clip" id="cIn"></span>
+          <span>OUT</span><div class="meter"><i id="mOut"></i><s id="hOut"></s></div><span class="clip" id="cOut"></span>
+          <div class="scale"><span>-60</span><span>-40</span><span>-20</span><span>-6</span><span>0</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="ph">อัดเสียง <span class="lcd" id="recTime" style="padding:1px 8px">00:00</span></div>
+      <div class="pb">
+        <div class="rec-row">
+          <button class="btn rec" id="recBtn" aria-pressed="false" title="R"><span class="led"></span><span id="recTxt">เริ่มอัด</span></button>
+          <span class="empty" id="recHint">อัดเสียงที่แปลงแล้ว เป็นไฟล์ .webm</span>
+        </div>
+        <ul class="takes" id="takes"></ul>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="ph">ทดสอบด้วยไฟล์เสียง</div>
+      <div class="pb">
+        <div class="rec-row">
+          <label class="btn" for="fileIn">เลือกไฟล์</label>
+          <input type="file" id="fileIn" accept="audio/*" hidden>
+          <button class="btn" id="playBtn" aria-pressed="false" disabled><span class="led"></span><span id="playTxt">เล่น</span></button>
+          <label class="chk"><input type="checkbox" id="loopChk" checked> วนซ้ำ</label>
+        </div>
+        <div class="fname" id="fname">ยังไม่ได้เลือกไฟล์ (mp3, wav, m4a, ogg)</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="ph">ปุ่มลัด</div>
+      <div class="pb">
+        <dl class="keys">
+          <dt>1–9, 0</dt><dd>เปลี่ยนพรีเซ็ต</dd>
+          <dt>Space</dt><dd>สลับเสียงจริง / เสียงแปลง</dd>
+          <dt>M</dt><dd>เปิด/ปิดการฟังเสียงตัวเอง</dd>
+          <dt>H</dt><dd>เปิด/ปิดโหมดฟังเสียงไกล</dd>
+          <dt>G</dt><dd>เปิด/ปิดโหมดเกม</dd>
+          <dt>R</dt><dd>เริ่ม/หยุดอัด</dd>
+          <dt class="app-only">Ctrl+Alt+1–0</dt><dd class="app-only">เปลี่ยนพรีเซ็ตได้แม้อยู่ในเกม/โปรแกรมอื่น</dd>
+          <dt class="app-only">Ctrl+Alt+B / M / R / H / G</dt><dd class="app-only">Bypass / ฟังเสียงตัวเอง / อัด / ฟังเสียงไกล / โหมดเกม (ใช้ได้ระหว่างเล่นเกม)</dd>
+          <dt>ลูกบิด</dt><dd>ลากขึ้นลง หรือหมุนล้อเมาส์ · กด Shift เพื่อปรับละเอียด · ดับเบิลคลิกเพื่อรีเซ็ต</dd>
+        </dl>
+        <p class="note">ใช้กับ Discord หรือเกม: ติดตั้ง VB-Audio Virtual Cable แล้วเลือก "CABLE Input" ที่ช่องเสียงออกด้านบน จากนั้นตั้งไมค์ในโปรแกรมนั้นเป็น "CABLE Output"</p>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<script>
+"use strict";
+/* ---------- DSP core (AudioWorklet): gate, pitch shift, vibrato, ring mod, bitcrush ---------- */
+const CORE = `
+class VoxCore extends AudioWorkletProcessor{
+  constructor(){
+    super();
+    this.p={gateOn:0,gateTh:0.003,pitchOn:0,ratio:1,win:0.03,vibOn:0,vibRate:5,vibDepth:0,ringOn:0,ringFreq:60,ringMix:1,crushOn:0,bits:8,down:4};
+    this.N=8192;this.mask=this.N-1;this.buf=new Float32Array(this.N);this.w=0;this.ph=0;this.r=1;
+    this.vN=2048;this.vmask=this.vN-1;this.vbuf=new Float32Array(this.vN);this.vw=0;this.vph=0;
+    this.rph=0;this.env=0;this.gg=1;this.hold=0;this.cnt=0;
+    this.port.onmessage=e=>Object.assign(this.p,e.data);
+  }
+  rd(b,m,w,d){let pos=w-d;if(pos<0)pos+=m+1;const i=Math.floor(pos),f=pos-i;return b[i&m]*(1-f)+b[(i+1)&m]*f;}
+  process(inputs,outputs){
+    const inp=inputs[0],out=outputs[0],p=this.p,n=out[0].length,sr=sampleRate;
+    const W=Math.max(64,Math.min(this.N-4,p.win*sr)),TAU=Math.PI*2;
+    const vmax=p.vibDepth*0.006*sr,q=Math.pow(2,p.bits-1),down=Math.max(1,p.down|0);
+    for(let i=0;i<n;i++){
+      let x=0;
+      if(inp.length){for(let c=0;c<inp.length;c++)x+=inp[c][i];x/=inp.length;}
+      if(p.gateOn){
+        const a=Math.abs(x);this.env=a>this.env?a:this.env*0.9997;
+        const t=this.env>p.gateTh?1:0;this.gg+=(t-this.gg)*(t>this.gg?0.02:0.0006);x*=this.gg;
+      }
+      this.buf[this.w]=x;
+      if(p.pitchOn){
+        this.r+=(p.ratio-this.r)*0.002;
+        this.ph+=(1-this.r)/W;this.ph-=Math.floor(this.ph);
+        let p2=this.ph+0.5;if(p2>=1)p2-=1;
+        x=this.rd(this.buf,this.mask,this.w,this.ph*W)*Math.sin(Math.PI*this.ph)+this.rd(this.buf,this.mask,this.w,p2*W)*Math.sin(Math.PI*p2);
+      }
+      this.w=(this.w+1)&this.mask;
+      if(p.vibOn&&vmax>0){
+        this.vbuf[this.vw]=x;this.vph+=TAU*p.vibRate/sr;if(this.vph>TAU)this.vph-=TAU;
+        x=this.rd(this.vbuf,this.vmask,this.vw,1+vmax*(0.5+0.5*Math.sin(this.vph)));this.vw=(this.vw+1)&this.vmask;
+      }
+      if(p.ringOn){
+        this.rph+=TAU*p.ringFreq/sr;if(this.rph>TAU)this.rph-=TAU;
+        x=x*(1-p.ringMix)+x*Math.sin(this.rph)*p.ringMix;
+      }
+      if(p.crushOn){if(++this.cnt>=down){this.cnt=0;this.hold=Math.round(x*q)/q;}x=this.hold;}
+      for(let c=0;c<out.length;c++)out[c][i]=x;
+    }
+    return true;
+  }
+}
+registerProcessor('vox-core',VoxCore);
+// Hearing mode noise reduction: tracks the background noise floor and turns down anything that sits near it
+// (downward expansion), so boosted room sound keeps voices and footsteps but loses most of the hiss.
+class VoxHear extends AudioWorkletProcessor{
+  constructor(){super();this.p={on:0,amt:0.5};this.env=0;this.floor=1e-4;this.g=1;this.port.onmessage=e=>Object.assign(this.p,e.data);}
+  process(inputs,outputs){
+    const inp=inputs[0],out=outputs[0],p=this.p,n=out[0].length;
+    const minG=Math.pow(10,-30*p.amt/20),th=2+6*p.amt,ex=1+3*p.amt;
+    for(let i=0;i<n;i++){
+      let x=0;
+      if(inp.length){for(let c=0;c<inp.length;c++)x+=inp[c][i];x/=inp.length;}
+      if(p.on&&p.amt>0){
+        const a=Math.abs(x);this.env+=(a-this.env)*(a>this.env?0.01:0.0005);
+        if(this.env<this.floor)this.floor+=(this.env-this.floor)*0.001;else this.floor*=1.00001;
+        if(this.floor<1e-6)this.floor=1e-6;
+        const lim=this.floor*th,t=this.env>=lim?1:Math.max(minG,Math.pow(this.env/lim,ex));
+        this.g+=(t-this.g)*(t>this.g?0.02:0.002);x*=this.g;
+      }
+      for(let c=0;c<out.length;c++)out[c][i]=x;
+    }
+    return true;
+  }
+}
+registerProcessor('vox-hear',VoxHear);`;
+
+/* ---------- state ---------- */
+const DEFAULT = {
+  input:{gain:0},
+  hear:{on:false,boost:18,nr:0.5,clar:6,low:120,ceil:-12},
+  gate:{on:false,th:-55},
+  pitch:{on:false,semi:0,cents:0,win:30},
+  vib:{on:false,rate:5,depth:0.3},
+  ring:{on:false,freq:60,mix:1},
+  crush:{on:false,bits:8,down:4},
+  drive:{on:false,amt:30},
+  filter:{on:false,type:"lowpass",freq:3000,q:1},
+  eq:{on:false,low:0,mid:0,high:0},
+  comp:{on:false,th:-24,ratio:4},
+  chorus:{on:false,rate:1.2,depth:0.4,mix:0.5},
+  trem:{on:false,rate:6,depth:0.5},
+  echo:{on:false,time:0.25,fb:0.35,mix:0.3},
+  reverb:{on:false,size:2,mix:0.3},
+  out:{vol:0,pan:0}
+};
+const PRESETS = [
+  {n:"ปกติ (ไม่แปลง)", s:{}},
+  {n:"ผู้หญิง", s:{pitch:{on:true,semi:5,cents:0,win:24},eq:{on:true,low:-4,mid:1,high:3}}},
+  {n:"ผู้ชายเสียงทุ้ม", s:{pitch:{on:true,semi:-5,win:34},eq:{on:true,low:4,mid:0,high:-2},comp:{on:true,th:-26,ratio:3}}},
+  {n:"เด็ก", s:{pitch:{on:true,semi:8,win:20},eq:{on:true,low:-6,mid:2,high:4}}},
+  {n:"ชิปมังก์", s:{pitch:{on:true,semi:12,win:18},eq:{on:true,low:-6,mid:0,high:2}}},
+  {n:"ยักษ์", s:{pitch:{on:true,semi:-10,win:42},eq:{on:true,low:5,mid:-2,high:-4},reverb:{on:true,size:2.5,mix:0.22}}},
+  {n:"ปีศาจ", s:{pitch:{on:true,semi:-7,win:40},drive:{on:true,amt:45},ring:{on:true,freq:32,mix:0.3},reverb:{on:true,size:3,mix:0.35},eq:{on:true,low:4,mid:0,high:-3}}},
+  {n:"หุ่นยนต์", s:{ring:{on:true,freq:85,mix:1},echo:{on:true,time:0.012,fb:0.55,mix:0.45},comp:{on:true,th:-30,ratio:6}}},
+  {n:"เอเลี่ยน", s:{pitch:{on:true,semi:3,win:22},vib:{on:true,rate:8,depth:0.8},ring:{on:true,freq:420,mix:0.35},reverb:{on:true,size:1.5,mix:0.2}}},
+  {n:"วิทยุสื่อสาร", s:{filter:{on:true,type:"bandpass",freq:1800,q:1.6},drive:{on:true,amt:55},crush:{on:true,bits:10,down:2},comp:{on:true,th:-35,ratio:8},gate:{on:true,th:-48}}},
+  {n:"โทรศัพท์", s:{filter:{on:true,type:"bandpass",freq:1300,q:0.9},crush:{on:true,bits:12,down:3},eq:{on:true,low:-10,mid:4,high:-6}}},
+  {n:"ประกาศสนาม", s:{filter:{on:true,type:"highpass",freq:350,q:0.8},drive:{on:true,amt:20},echo:{on:true,time:0.19,fb:0.4,mix:0.35},reverb:{on:true,size:3.5,mix:0.3}}},
+  {n:"ถ้ำ", s:{reverb:{on:true,size:5,mix:0.5},echo:{on:true,time:0.33,fb:0.3,mix:0.22},eq:{on:true,low:2,mid:-2,high:-3}}},
+  {n:"เกม 8 บิต", s:{crush:{on:true,bits:4,down:8},pitch:{on:true,semi:2,win:24}}},
+  {n:"คนแก่", s:{pitch:{on:true,semi:-1,win:30},vib:{on:true,rate:6,depth:0.45},trem:{on:true,rate:5,depth:0.35},filter:{on:true,type:"highpass",freq:180,q:0.7}}},
+  {n:"ใต้น้ำ", s:{filter:{on:true,type:"lowpass",freq:520,q:4},vib:{on:true,rate:1.4,depth:0.6},chorus:{on:true,rate:0.6,depth:0.8,mix:0.6}}},
+  {n:"ผี", s:{filter:{on:true,type:"highpass",freq:600,q:0.7},vib:{on:true,rate:0.8,depth:0.5},trem:{on:true,rate:1.5,depth:0.4},echo:{on:true,time:0.42,fb:0.5,mix:0.35},reverb:{on:true,size:5.5,mix:0.6}}},
+  {n:"ร้องประสานเสียง", s:{chorus:{on:true,rate:0.9,depth:0.7,mix:0.7},reverb:{on:true,size:2.2,mix:0.25},comp:{on:true,th:-22,ratio:3}}}
+];
+const clone = o => JSON.parse(JSON.stringify(o));
+function merge(base, over){ const r=clone(base); for(const k in over) r[k]=Object.assign(r[k]||{}, over[k]); return r; }
+let S = clone(DEFAULT);
+let curPreset = 0, modified = false;
+let mine = [];
+try { mine = JSON.parse(localStorage.getItem("voxrack.presets")||"[]"); } catch(e){ mine = []; }
+
+/* ---------- formatting ---------- */
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const db2g=d=>Math.pow(10,d/20);
+const fDb=v=>(v>0?"+":"")+v.toFixed(1)+" dB";
+const fHz=v=>v>=1000?(v/1000).toFixed(v>=10000?0:1)+" kHz":Math.round(v)+" Hz";
+const fPct=v=>Math.round(v*100)+"%";
+const fMs=v=>v<1?Math.round(v*1000)+" ms":v.toFixed(2)+" s";
+const fSemi=v=>(v>0?"+":"")+v+" st";
+
+/* ---------- module schema (order = signal chain) ---------- */
+const MODS = [
+  {id:"input",n:"อินพุต",always:true,d:"ระดับเสียงเข้าจากไมค์",k:[{k:"gain",l:"Gain",min:-24,max:24,step:0.5,bi:0,f:fDb}]},
+  {id:"hear",n:"ฟังเสียงไกล",d:"ขยายเสียงรอบตัวเข้าหูฟัง · ขยายมาก = ได้ยินไกลขึ้น · เพดานความดังกันหูเสีย",k:[
+    {k:"boost",l:"ขยาย (ระยะ)",min:0,max:40,step:1,f:v=>"+"+v+" dB"},
+    {k:"nr",l:"ลดเสียงซ่า",min:0,max:1,step:0.01,f:fPct},
+    {k:"clar",l:"เน้นเสียงพูด",min:0,max:12,step:0.5,f:fDb},
+    {k:"low",l:"ตัดลม/หึ่ง",min:20,max:500,log:true,f:fHz},
+    {k:"ceil",l:"เพดานเสียง",min:-30,max:-3,step:1,f:v=>v+" dB"}]},
+  {id:"gate",n:"ตัดเสียงรบกวน",d:"เงียบเมื่อไม่ได้พูด",k:[{k:"th",l:"ระดับตัด",min:-90,max:-20,step:1,f:v=>v+" dB"}]},
+  {id:"pitch",n:"ระดับเสียง",d:"สูงขึ้น/ต่ำลง ทีละครึ่งเสียง",k:[
+    {k:"semi",l:"คีย์",min:-12,max:12,step:1,bi:0,f:fSemi},
+    {k:"cents",l:"ละเอียด",min:-100,max:100,step:1,bi:0,f:v=>(v>0?"+":"")+v+" ¢"},
+    {k:"win",l:"หน้าต่าง",min:12,max:60,step:1,f:v=>v+" ms"}]},
+  {id:"vib",n:"เสียงสั่น",d:"Vibrato",k:[{k:"rate",l:"ความเร็ว",min:0.3,max:12,step:0.1,f:v=>v.toFixed(1)+" Hz"},{k:"depth",l:"ความลึก",min:0,max:1,step:0.01,f:fPct}]},
+  {id:"ring",n:"เสียงโลหะ",d:"Ring modulator",k:[{k:"freq",l:"ความถี่",min:10,max:2000,log:true,f:fHz},{k:"mix",l:"ผสม",min:0,max:1,step:0.01,f:fPct}]},
+  {id:"crush",n:"Lo-Fi",d:"ลดคุณภาพแบบเครื่องเกมเก่า",k:[{k:"bits",l:"บิต",min:2,max:16,step:1,f:v=>v+" bit"},{k:"down",l:"ลดแซมเปิล",min:1,max:20,step:1,f:v=>"÷"+v}]},
+  {id:"drive",n:"เสียงแตก",d:"Overdrive",k:[{k:"amt",l:"ความแตก",min:0,max:100,step:1,f:v=>v+"%"}]},
+  {id:"filter",n:"ฟิลเตอร์",d:"",seg:["lowpass","bandpass","highpass"],k:[{k:"freq",l:"ความถี่",min:60,max:12000,log:true,f:fHz},{k:"q",l:"Q",min:0.3,max:12,log:true,f:v=>v.toFixed(1)}]},
+  {id:"eq",n:"อีคิว 3 ย่าน",d:"200 Hz · 1.2 kHz · 4.5 kHz",k:[
+    {k:"low",l:"ทุ้ม",min:-15,max:15,step:0.5,bi:0,f:fDb},{k:"mid",l:"กลาง",min:-15,max:15,step:0.5,bi:0,f:fDb},{k:"high",l:"แหลม",min:-15,max:15,step:0.5,bi:0,f:fDb}]},
+  {id:"comp",n:"คอมเพรสเซอร์",d:"เสียงเบา-ดังสม่ำเสมอ",k:[{k:"th",l:"Threshold",min:-60,max:0,step:1,f:v=>v+" dB"},{k:"ratio",l:"Ratio",min:1,max:20,step:0.5,f:v=>v+":1"}]},
+  {id:"chorus",n:"คอรัส",d:"เหมือนพูดพร้อมกันหลายคน",k:[{k:"rate",l:"ความเร็ว",min:0.1,max:5,step:0.05,f:v=>v.toFixed(2)+" Hz"},{k:"depth",l:"ความลึก",min:0,max:1,step:0.01,f:fPct},{k:"mix",l:"ผสม",min:0,max:1,step:0.01,f:fPct}]},
+  {id:"trem",n:"เทรโมโล",d:"ความดังขึ้นลงเป็นจังหวะ",k:[{k:"rate",l:"ความเร็ว",min:0.5,max:15,step:0.1,f:v=>v.toFixed(1)+" Hz"},{k:"depth",l:"ความลึก",min:0,max:1,step:0.01,f:fPct}]},
+  {id:"echo",n:"เสียงสะท้อน",d:"Delay",k:[{k:"time",l:"เวลา",min:0.01,max:1,log:true,f:fMs},{k:"fb",l:"ซ้ำ",min:0,max:0.9,step:0.01,f:fPct},{k:"mix",l:"ผสม",min:0,max:1,step:0.01,f:fPct}]},
+  {id:"reverb",n:"ห้องก้อง",d:"Reverb",k:[{k:"size",l:"ขนาดห้อง",min:0.3,max:6,step:0.1,f:v=>v.toFixed(1)+" s"},{k:"mix",l:"ผสม",min:0,max:1,step:0.01,f:fPct}]},
+  {id:"out",n:"เอาต์พุต",always:true,d:"ระดับเสียงออกและซ้าย-ขวา",k:[{k:"vol",l:"Volume",min:-40,max:12,step:0.5,bi:0,f:fDb},{k:"pan",l:"Pan",min:-1,max:1,step:0.01,bi:0,f:v=>Math.abs(v)<0.01?"C":(v<0?"L":"R")+Math.round(Math.abs(v)*100)}]}
+];
+const SEG_LABEL={lowpass:"LP",bandpass:"BP",highpass:"HP"};
+
+/* ---------- knob control ---------- */
+const CX=25,R=19;
+const pt=a=>{const r=a*Math.PI/180;return (CX+R*Math.sin(r)).toFixed(2)+" "+(CX-R*Math.cos(r)).toFixed(2);};
+const arc=(a0,a1)=>a1-a0<0.5?"":`M${pt(a0)} A${R} ${R} 0 ${a1-a0>180?1:0} 1 ${pt(a1)}`;
+function Knob(o){
+  const el=document.createElement("div");
+  el.className="knob";el.tabIndex=0;el.setAttribute("role","slider");el.setAttribute("aria-label",o.l);
+  el.innerHTML=`<svg viewBox="0 0 50 50" aria-hidden="true"><path class="k-track" d="${arc(-135,135)}"/><path class="k-val"/><circle class="k-cap" cx="25" cy="25" r="13"/><line class="k-ptr" x1="25" y1="25" x2="25" y2="15"/></svg><span class="k-lab">${o.l}</span><output class="k-out"></output>`;
+  const pv=el.querySelector(".k-val"),pp=el.querySelector(".k-ptr"),out=el.querySelector(".k-out");
+  let v=o.value;
+  const toN=x=>o.log?Math.log(x/o.min)/Math.log(o.max/o.min):(x-o.min)/(o.max-o.min);
+  const fromN=n=>{n=clamp(n,0,1);let x=o.log?o.min*Math.pow(o.max/o.min,n):o.min+n*(o.max-o.min);
+    if(o.step)x=Math.round(x/o.step)*o.step;else x=+x.toPrecision(3);return clamp(x,o.min,o.max);};
+  function draw(){
+    const a=-135+270*toN(v),s=o.bi!==undefined?-135+270*toN(o.bi):-135;
+    pv.setAttribute("d",arc(Math.min(s,a),Math.max(s,a)));
+    pp.setAttribute("transform",`rotate(${a.toFixed(1)} 25 25)`);
+    out.textContent=o.f(v);el.setAttribute("aria-valuetext",o.f(v));
+  }
+  function set(x){x=clamp(x,o.min,o.max);if(x===v)return;v=x;draw();o.onChange(v);}
+  let sy=0,sn=0;
+  el.addEventListener("pointerdown",e=>{el.setPointerCapture(e.pointerId);sy=e.clientY;sn=toN(v);el.focus();});
+  el.addEventListener("pointermove",e=>{if(!el.hasPointerCapture(e.pointerId))return;set(fromN(sn+(sy-e.clientY)/(e.shiftKey?700:170)));});
+  el.addEventListener("wheel",e=>{e.preventDefault();set(fromN(toN(v)-Math.sign(e.deltaY)*(e.shiftKey?0.005:0.03)));},{passive:false});
+  el.addEventListener("dblclick",()=>set(o.def));
+  el.addEventListener("keydown",e=>{const st=e.shiftKey?0.005:0.025;
+    if(e.key==="ArrowUp"||e.key==="ArrowRight"){set(fromN(toN(v)+st));e.preventDefault();}
+    else if(e.key==="ArrowDown"||e.key==="ArrowLeft"){set(fromN(toN(v)-st));e.preventDefault();}
+    else if(e.key==="Home"){set(o.min);e.preventDefault();}else if(e.key==="End"){set(o.max);e.preventDefault();}});
+  draw();
+  return {el,set:x=>{v=x;draw();}};
+}
+
+/* ---------- build rack UI ---------- */
+const $=id=>document.getElementById(id);
+const UI={};
+function buildRack(){
+  const rack=$("rack");
+  MODS.forEach((m,i)=>{
+    const card=document.createElement("div");card.className="mod";
+    const h=document.createElement("div");h.className="mh";
+    h.innerHTML=`<span class="idx">${String(i+1).padStart(2,"0")}</span><span class="mn">${m.n}</span>`;
+    const ui={card,knobs:{}};
+    if(!m.always){
+      const p=document.createElement("button");p.className="pwr";p.setAttribute("aria-label","เปิด/ปิด "+m.n);
+      p.onclick=m.id==="hear"?()=>setHear(!S.hear.on):()=>{S[m.id].on=!S[m.id].on;touched();refresh(m.id);apply(m.id);};
+      h.appendChild(p);ui.pwr=p;
+    }
+    card.appendChild(h);
+    const b=document.createElement("div");b.className="mb";
+    if(m.seg){
+      const sg=document.createElement("div");sg.className="seg";ui.seg=[];
+      m.seg.forEach(t=>{const bt=document.createElement("button");bt.textContent=SEG_LABEL[t];bt.dataset.t=t;
+        bt.onclick=()=>{S[m.id].type=t;touched();refresh(m.id);apply(m.id);};sg.appendChild(bt);ui.seg.push(bt);});
+      b.appendChild(sg);
+    }
+    m.k.forEach(kd=>{
+      const kn=Knob(Object.assign({},kd,{value:S[m.id][kd.k],def:DEFAULT[m.id][kd.k],
+        onChange:v=>{S[m.id][kd.k]=v;if(m.id!=="hear")touched();apply(m.id);}}));
+      b.appendChild(kn.el);ui.knobs[kd.k]=kn;
+    });
+    card.appendChild(b);
+    if(m.d){const d=document.createElement("div");d.className="mdesc";d.textContent=m.d;card.appendChild(d);}
+    rack.appendChild(card);UI[m.id]=ui;
+  });
+}
+function refresh(id){
+  const ui=UI[id],s=S[id];
+  if(ui.pwr){ui.pwr.setAttribute("aria-pressed",s.on);ui.card.classList.toggle("off",!s.on);}
+  if(id==="hear")$("hearBtn").setAttribute("aria-pressed",s.on);
+  if(ui.seg)ui.seg.forEach(b=>b.setAttribute("aria-pressed",b.dataset.t===s.type));
+  for(const k in ui.knobs)ui.knobs[k].set(s[k]);
+}
+function touched(){if(!modified){modified=true;$("presetMod").textContent="แก้ไขแล้ว";}}
+
+/* ---------- presets UI ---------- */
+function allPresets(){return PRESETS.concat(mine);}
+function renderPresets(){
+  const mk=(list,box,off)=>{box.innerHTML="";list.forEach((p,i)=>{
+    const idx=i+off,b=document.createElement("div");
+    b.innerHTML=`<button class="pr${idx===curPreset?" on":""}"><kbd>${idx<10?(idx+1)%10:""}</kbd><span class="pn"></span></button>`;
+    const btn=b.firstChild;btn.querySelector(".pn").textContent=p.n;btn.onclick=()=>loadPreset(idx);
+    if(off){const x=document.createElement("button");x.className="x";x.type="button";x.textContent="×";x.title="ลบ";x.setAttribute("aria-label","ลบ "+p.n);
+      x.onclick=e=>{e.stopPropagation();mine.splice(i,1);saveMine();if(curPreset===idx)curPreset=-1;else if(curPreset>idx)curPreset--;renderPresets();};btn.appendChild(x);}
+    box.appendChild(btn);});};
+  mk(PRESETS,$("plist"),0);mk(mine,$("mylist"),PRESETS.length);
+  $("mySub").hidden=!mine.length;
+}
+function saveMine(){try{localStorage.setItem("voxrack.presets",JSON.stringify(mine));}catch(e){}}
+function loadPreset(i){
+  const p=allPresets()[i];if(!p)return;
+  const hear=S.hear;S=merge(DEFAULT,p.s);if(!p.s.hear)S.hear=hear;curPreset=i;modified=false;$("presetMod").textContent="";
+  MODS.forEach(m=>refresh(m.id));applyAll();renderPresets();
+  setStatus("พรีเซ็ต: "+p.n);
+}
+$("saveForm").addEventListener("submit",e=>{
+  e.preventDefault();const n=$("saveName").value.trim();
+  if(!n){setStatus("ใส่ชื่อก่อนกดบันทึก",true);$("saveName").focus();return;}
+  const s=clone(S);delete s.hear;
+  mine.push({n,s});saveMine();curPreset=PRESETS.length+mine.length-1;modified=false;$("presetMod").textContent="";
+  $("saveName").value="";renderPresets();setStatus("บันทึก \""+n+"\" แล้ว");
+});
+
+function setStatus(t,err){const s=$("status");s.textContent=t;s.classList.toggle("err",!!err);}
+
+/* ---------- audio graph ---------- */
+let A=null;
+async function initAudio(){
+  const ctx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:0});
+  if(!ctx.audioWorklet)throw new Error("เบราว์เซอร์นี้ไม่รองรับ AudioWorklet ใช้ Chrome หรือ Edge");
+  const url=URL.createObjectURL(new Blob([CORE],{type:"application/javascript"}));
+  await ctx.audioWorklet.addModule(url);
+  const g=v=>{const n=ctx.createGain();n.gain.value=v;return n;};
+  const a={ctx};
+  a.inGain=g(1);a.chainIn=g(1);a.bypass=g(0);
+  a.inAn=ctx.createAnalyser();a.inAn.fftSize=1024;
+  a.core=new AudioWorkletNode(ctx,"vox-core",{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[2]});
+  a.shaper=ctx.createWaveShaper();a.shaper.oversample="2x";a.driveOut=g(1);
+  a.filt=ctx.createBiquadFilter();
+  a.eqL=ctx.createBiquadFilter();a.eqL.type="lowshelf";a.eqL.frequency.value=200;
+  a.eqM=ctx.createBiquadFilter();a.eqM.type="peaking";a.eqM.frequency.value=1200;a.eqM.Q.value=0.8;
+  a.eqH=ctx.createBiquadFilter();a.eqH.type="highshelf";a.eqH.frequency.value=4500;
+  a.comp=ctx.createDynamicsCompressor();a.comp.knee.value=6;a.comp.attack.value=0.003;a.comp.release.value=0.2;
+  a.busA=g(1);a.mixA=g(1);
+  a.chDelay=ctx.createDelay(0.1);a.chDelay.delayTime.value=0.018;a.chWet=g(0);
+  a.chOsc=ctx.createOscillator();a.chDepth=g(0);a.chOsc.connect(a.chDepth).connect(a.chDelay.delayTime);a.chOsc.start();
+  a.trem=g(1);a.tremOsc=ctx.createOscillator();a.tremDepth=g(0);a.tremOsc.connect(a.tremDepth).connect(a.trem.gain);a.tremOsc.start();
+  a.busB=g(1);a.sum=g(1);
+  a.echo=ctx.createDelay(2);a.echoLP=ctx.createBiquadFilter();a.echoLP.type="lowpass";a.echoLP.frequency.value=5000;a.echoFb=g(0);a.echoWet=g(0);
+  a.conv=ctx.createConvolver();a.revWet=g(0);a.irSize=0;
+  a.master=g(1);a.pan=ctx.createStereoPanner();
+  a.outAn=ctx.createAnalyser();a.outAn.fftSize=2048;a.outAn.smoothingTimeConstant=0.75;
+  a.mon=g(1);a.recDest=ctx.createMediaStreamDestination();
+  // Hearing mode runs parallel to a dry path so it adds no latency while off.
+  a.hub=g(1);a.hearDry=g(1);a.hearWet=g(0);
+  a.hearNR=new AudioWorkletNode(ctx,"vox-hear",{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1]});
+  a.hearHP=ctx.createBiquadFilter();a.hearHP.type="highpass";a.hearHP.Q.value=0.7;
+  a.hearEq=ctx.createBiquadFilter();a.hearEq.type="peaking";a.hearEq.frequency.value=2500;a.hearEq.Q.value=0.9;
+  a.hearComp=ctx.createDynamicsCompressor();a.hearComp.threshold.value=-30;a.hearComp.ratio.value=3;a.hearComp.knee.value=12;
+  a.hearComp.attack.value=0.003;a.hearComp.release.value=0.25;
+  // Zero-latency soft limiter at the very end: caps what reaches the ears however much is boosted.
+  a.limIn=g(1);a.lim=ctx.createWaveShaper();a.limOut=g(1);
+
+  // Game chain (stereo, kept separate from the mono voice chain so positional audio survives).
+  a.gIn=g(1);a.gIn.channelCount=2;a.gIn.channelCountMode="explicit";a.gIn.channelInterpretation="speakers";
+  const bq=(type,f,q)=>{const b=ctx.createBiquadFilter();b.type=type;b.frequency.value=f;if(q)b.Q.value=q;return b;};
+  a.gHP=bq("highpass",22,0.7);a.gBass=bq("lowshelf",90);a.gMud=bq("peaking",300,1);a.gSteps=bq("peaking",3200,1.2);a.gTreble=bq("highshelf",8000);
+  a.gComp=ctx.createDynamicsCompressor();a.gComp.knee.value=10;a.gComp.attack.value=0.003;a.gComp.release.value=0.15;
+  a.gSplit=ctx.createChannelSplitter(2);a.gMerge=ctx.createChannelMerger(2);a.gLL=g(1);a.gRR=g(1);a.gLR=g(0);a.gRL=g(0);
+  a.gVol=g(1);a.gLimIn=g(1);a.gLim=ctx.createWaveShaper();a.gLim.curve=LIMIT_CURVE;a.gLimOut=g(1);
+  a.gIn.connect(a.gHP).connect(a.gBass).connect(a.gMud).connect(a.gSteps).connect(a.gTreble).connect(a.gComp).connect(a.gSplit);
+  a.gSplit.connect(a.gLL,0).connect(a.gMerge,0,0);a.gSplit.connect(a.gRL,0).connect(a.gMerge,0,1);
+  a.gSplit.connect(a.gRR,1).connect(a.gMerge,0,1);a.gSplit.connect(a.gLR,1).connect(a.gMerge,0,0);
+  a.gMerge.connect(a.gVol).connect(a.gLimIn).connect(a.gLim).connect(a.gLimOut).connect(ctx.destination);
+  a.gLimOut.connect(a.outAn);
+
+  a.inGain.connect(a.hearDry).connect(a.hub);
+  a.inGain.connect(a.hearNR).connect(a.hearHP).connect(a.hearEq).connect(a.hearComp).connect(a.hearWet).connect(a.hub);
+  a.hub.connect(a.inAn);
+  a.hub.connect(a.chainIn).connect(a.core).connect(a.shaper).connect(a.driveOut).connect(a.filt)
+    .connect(a.eqL).connect(a.eqM).connect(a.eqH).connect(a.comp).connect(a.busA);
+  a.busA.connect(a.mixA);a.busA.connect(a.chDelay).connect(a.chWet).connect(a.mixA);
+  a.mixA.connect(a.trem).connect(a.busB);
+  a.busB.connect(a.sum);
+  a.busB.connect(a.echo).connect(a.echoLP).connect(a.echoFb).connect(a.echo);a.echoLP.connect(a.echoWet).connect(a.sum);
+  a.busB.connect(a.conv).connect(a.revWet).connect(a.sum);
+  a.sum.connect(a.master);a.hub.connect(a.bypass).connect(a.master);
+  a.master.connect(a.limIn).connect(a.lim).connect(a.limOut).connect(a.pan).connect(a.outAn);
+  a.pan.connect(a.mon).connect(ctx.destination);a.pan.connect(a.recDest);
+  A=a;applyAll();applyGame();setBypass(bypassed);setMonitor(monitor);
+}
+function makeIR(sec){
+  const ctx=A.ctx,len=Math.floor(ctx.sampleRate*sec),ir=ctx.createBuffer(2,len,ctx.sampleRate);
+  for(let c=0;c<2;c++){const d=ir.getChannelData(c);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3.2);}
+  A.conv.buffer=ir;A.irSize=sec;
+}
+function driveCurve(amt){
+  const k=amt/100*40,n=2048,c=new Float32Array(n);
+  for(let i=0;i<n;i++){const x=i/(n-1)*2-1;c[i]=(1+k)*x/(1+k*Math.abs(x));}
+  return c;
+}
+// Linear up to 80% of the ceiling, then bends smoothly into it; input beyond ±1 is held at the edge.
+const LIMIT_CURVE=(()=>{const n=4096,c=new Float32Array(n);
+  for(let i=0;i<n;i++){const x=i/(n-1)*2-1,a=Math.abs(x);c[i]=Math.sign(x)*(a<0.8?a:0.8+0.2*Math.tanh((a-0.8)/0.2));}return c;})();
+const HEAR_MAKEUP=10; // measured: Chromium's auto makeup for threshold -30 / ratio 3 / knee 12
+let irTimer=0;
+function sendCore(){
+  if(!A)return;
+  A.core.port.postMessage({
+    gateOn:S.gate.on?1:0,gateTh:db2g(S.gate.th),
+    pitchOn:S.pitch.on?1:0,ratio:Math.pow(2,(S.pitch.semi+S.pitch.cents/100)/12),win:S.pitch.win/1000,
+    vibOn:S.vib.on?1:0,vibRate:S.vib.rate,vibDepth:S.vib.depth,
+    ringOn:S.ring.on?1:0,ringFreq:S.ring.freq,ringMix:S.ring.mix,
+    crushOn:S.crush.on?1:0,bits:S.crush.bits,down:S.crush.down
+  });
+}
+function apply(id){
+  if(!A)return;
+  const s=S[id],t=A.ctx.currentTime,set=(p,v)=>p.setTargetAtTime(v,t,0.012);
+  switch(id){
+    case "input":set(A.inGain.gain,db2g(s.gain));break;
+    case "hear":
+      A.hearNR.port.postMessage({on:s.on?1:0,amt:s.nr});
+      // The compressor adds its own makeup gain (HEAR_MAKEUP), so "boost" is the net gain quiet sounds get.
+      set(A.hearDry.gain,s.on?0:1);set(A.hearWet.gain,s.on?db2g(s.boost-HEAR_MAKEUP):0);
+      set(A.hearHP.frequency,s.low);set(A.hearEq.gain,s.clar);
+      A.lim.curve=s.on?LIMIT_CURVE:null;set(A.limIn.gain,s.on?1/db2g(s.ceil):1);set(A.limOut.gain,s.on?db2g(s.ceil):1);
+      break;
+    case "gate":case "pitch":case "vib":case "ring":case "crush":sendCore();break;
+    case "drive":A.shaper.curve=s.on&&s.amt>0?driveCurve(s.amt):null;set(A.driveOut.gain,s.on?db2g(-s.amt*0.06):1);break;
+    case "filter":A.filt.type=s.on?s.type:"allpass";set(A.filt.frequency,s.on?s.freq:1000);set(A.filt.Q,s.on?s.q:0.0001);break;
+    case "eq":set(A.eqL.gain,s.on?s.low:0);set(A.eqM.gain,s.on?s.mid:0);set(A.eqH.gain,s.on?s.high:0);break;
+    case "comp":set(A.comp.threshold,s.on?s.th:0);set(A.comp.ratio,s.on?s.ratio:1);break;
+    case "chorus":set(A.chOsc.frequency,s.rate);set(A.chDepth.gain,s.depth*0.007);set(A.chWet.gain,s.on?s.mix:0);break;
+    case "trem":set(A.tremOsc.frequency,s.rate);set(A.tremDepth.gain,s.on?s.depth/2:0);set(A.trem.gain,s.on?1-s.depth/2:1);break;
+    case "echo":set(A.echo.delayTime,s.time);set(A.echoFb.gain,s.on?s.fb:0);set(A.echoWet.gain,s.on?s.mix:0);break;
+    case "reverb":set(A.revWet.gain,s.on?s.mix*1.6:0);
+      if(s.on&&Math.abs(A.irSize-s.size)>0.05){clearTimeout(irTimer);irTimer=setTimeout(()=>makeIR(S.reverb.size),120);}break;
+    case "out":set(A.master.gain,db2g(s.vol));set(A.pan.pan,s.pan);break;
+  }
+}
+function applyAll(){MODS.forEach(m=>apply(m.id));}
+
+/* ---------- bypass / monitor ---------- */
+let bypassed=false,monitor=true;
+function setBypass(v){bypassed=v;$("byBtn").setAttribute("aria-pressed",v);
+  if(A){const t=A.ctx.currentTime;A.chainIn.gain.setTargetAtTime(v?0:1,t,0.01);A.bypass.gain.setTargetAtTime(v?1:0,t,0.01);}}
+function setMonitor(v){monitor=v;$("monBtn").setAttribute("aria-pressed",v);
+  if(A)A.mon.gain.setTargetAtTime(v?1:0,A.ctx.currentTime,0.01);}
+async function setHear(v){
+  S.hear.on=v;refresh("hear");apply("hear");
+  if(!v){setStatus("ปิดโหมดฟังเสียงไกลแล้ว");return;}
+  if(!monitor)setMonitor(true);
+  if(!stream){try{await ensureAudio();await openMic();}catch(e){micError(e);return;}}
+  setStatus("ฟังเสียงไกลเปิดแล้ว ใช้หูฟังเท่านั้น (ลำโพงจะหอน) · หมุน \"ขยาย\" เพื่อฟังไกลขึ้น"+
+    ($("nsChk").checked?" · ปิด \"ลดเสียงรบกวนของระบบ\" จะได้ยินเสียงเบาๆ ไกลๆ ดีกว่า":""));
+}
+$("hearBtn").onclick=()=>setHear(!S.hear.on);
+$("byBtn").onclick=()=>setBypass(!bypassed);
+$("monBtn").onclick=()=>setMonitor(!monitor);
+
+/* ---------- microphone ---------- */
+let stream=null,micSrc=null;
+async function ensureAudio(){
+  if(!A){setStatus("กำลังเตรียมระบบเสียง…");await initAudio();startViz();}
+  if(A.ctx.state==="suspended")await A.ctx.resume();
+}
+async function openMic(){
+  closeMic();
+  const devId=$("inSel").value;
+  stream=await navigator.mediaDevices.getUserMedia({audio:{
+    deviceId:devId?{exact:devId}:undefined,echoCancellation:false,autoGainControl:false,
+    noiseSuppression:$("nsChk").checked,latency:0,channelCount:1}});
+  micSrc=A.ctx.createMediaStreamSource(stream);micSrc.connect(A.inGain);
+  $("micBtn").setAttribute("aria-pressed","true");$("micTxt").textContent="ปิดไมค์";
+  const tr=stream.getAudioTracks()[0];
+  setStatus("ไมค์ทำงาน: "+(tr&&tr.label?tr.label:"ไมค์เริ่มต้น"));
+  await listDevices();renderDrv();
+}
+function closeMic(){
+  if(micSrc){micSrc.disconnect();micSrc=null;}
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  $("micBtn").setAttribute("aria-pressed","false");$("micTxt").textContent="เปิดไมค์";
+}
+async function listDevices(){
+  if(!navigator.mediaDevices.enumerateDevices)return;
+  const ds=await navigator.mediaDevices.enumerateDevices();
+  const fill=(sel,kind,def)=>{const cur=sel.value;sel.innerHTML="";
+    const o=document.createElement("option");o.value="";o.textContent=def;sel.appendChild(o);
+    ds.filter(d=>d.kind===kind&&d.deviceId!=="default"&&d.deviceId!=="communications").forEach(d=>{
+      const op=document.createElement("option");op.value=d.deviceId;op.textContent=d.label||kind;sel.appendChild(op);});
+    sel.value=[...sel.options].some(o=>o.value===cur)?cur:"";};
+  fill($("inSel"),"audioinput","ไมค์เริ่มต้น");
+  fill($("outSel"),"audiooutput","ลำโพงเริ่มต้น");
+}
+function micError(e){
+  closeMic();
+  const n=e&&e.name;
+  if(n==="NotAllowedError")setStatus("ไม่ได้รับอนุญาตให้ใช้ไมค์ กดไอคอนแม่กุญแจข้างแถบที่อยู่แล้วอนุญาตไมโครโฟน",true);
+  else if(n==="NotFoundError"||n==="OverconstrainedError")setStatus("ไม่พบไมค์ที่เลือก ลองเลือกไมค์ตัวอื่น",true);
+  else if(n==="NotReadableError")setStatus("ไมค์ถูกโปรแกรมอื่นใช้อยู่ ปิดโปรแกรมนั้นแล้วลองใหม่",true);
+  else setStatus("เปิดไมค์ไม่ได้: "+(e&&e.message||e),true);
+}
+$("micBtn").onclick=async()=>{
+  if(stream){closeMic();setStatus("ปิดไมค์แล้ว");return;}
+  try{await ensureAudio();await openMic();}catch(e){micError(e);}
+};
+$("inSel").onchange=async()=>{if(stream){try{await openMic();}catch(e){micError(e);}}};
+$("nsChk").onchange=$("inSel").onchange;
+async function applyOutput(){
+  await ensureAudio();
+  if(!A.ctx.setSinkId){setStatus("เบราว์เซอร์นี้เลือกอุปกรณ์เสียงออกไม่ได้ ใช้ Chrome 110 ขึ้นไป",true);return false;}
+  try{await A.ctx.setSinkId($("outSel").value);setStatus("เสียงออก: "+$("outSel").selectedOptions[0].textContent);return true;}
+  catch(e){setStatus("เปลี่ยนอุปกรณ์เสียงออกไม่ได้: "+e.message,true);return false;}
+}
+$("outSel").onchange=async()=>{
+  // In game mode Windows plays into CABLE Input; sending the app there too would feed the game sound back into itself.
+  if(game.on&&/^CABLE /i.test($("outSel").selectedOptions[0].textContent)){
+    setStatus("โหมดเกมเปิดอยู่ ส่งเสียงออกทาง CABLE ไม่ได้ (เสียงจะวนกลับเข้ามาเอง)",true);
+    const hp=pickHeadphones(),d=hp&&await findChromeDevice(hp);$("outSel").value=d?d.deviceId:"";return;}
+  await applyOutput();renderDrv();
+};
+if(navigator.mediaDevices)navigator.mediaDevices.addEventListener("devicechange",()=>{listDevices();if(window.vox)scheduleScan();});
+
+/* ---------- file player ---------- */
+let fileBuf=null,fileSrc=null;
+$("fileIn").onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{await ensureAudio();fileBuf=await A.ctx.decodeAudioData(await f.arrayBuffer());
+    $("fname").textContent=f.name+" · "+fileBuf.duration.toFixed(1)+" s";$("playBtn").disabled=false;stopFile();playFile();}
+  catch(err){setStatus("อ่านไฟล์นี้ไม่ได้ ลองใช้ mp3 หรือ wav",true);}
+};
+function playFile(){
+  stopFile();fileSrc=A.ctx.createBufferSource();fileSrc.buffer=fileBuf;fileSrc.loop=$("loopChk").checked;
+  fileSrc.connect(A.inGain);fileSrc.onended=()=>{if(fileSrc&&!fileSrc.loop)stopFile();};fileSrc.start();
+  $("playBtn").setAttribute("aria-pressed","true");$("playTxt").textContent="หยุด";
+}
+function stopFile(){
+  if(fileSrc){fileSrc.onended=null;try{fileSrc.stop();}catch(e){}fileSrc.disconnect();fileSrc=null;}
+  $("playBtn").setAttribute("aria-pressed","false");$("playTxt").textContent="เล่น";
+}
+$("playBtn").onclick=async()=>{if(fileSrc)stopFile();else if(fileBuf){await ensureAudio();playFile();}};
+$("loopChk").onchange=()=>{if(fileSrc)fileSrc.loop=$("loopChk").checked;};
+
+/* ---------- recorder ---------- */
+let rec=null,recStart=0,recTimer=0,takeN=0;
+async function toggleRec(){
+  if(rec){rec.stop();return;}
+  try{await ensureAudio();}catch(e){setStatus(e.message,true);return;}
+  const mime=["audio/webm;codecs=opus","audio/webm","audio/ogg"].find(m=>window.MediaRecorder&&MediaRecorder.isTypeSupported(m));
+  if(!mime){setStatus("เบราว์เซอร์นี้อัดเสียงไม่ได้",true);return;}
+  const chunks=[];rec=new MediaRecorder(A.recDest.stream,{mimeType:mime,audioBitsPerSecond:192000});
+  rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+  rec.onstop=()=>{
+    const blob=new Blob(chunks,{type:mime}),url=URL.createObjectURL(blob),dur=(performance.now()-recStart)/1000;
+    const d=new Date(),pad=n=>String(n).padStart(2,"0");
+    const fn=`voxrack-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.webm`;
+    const li=document.createElement("li");takeN++;
+    li.innerHTML=`<div class="tt"><span>เทค ${takeN} · ${fmtT(dur)} · ${(blob.size/1024).toFixed(0)} KB</span><a download="${fn}" href="${url}">ดาวน์โหลด</a></div><audio controls src="${url}"></audio>`;
+    $("takes").prepend(li);$("recHint").hidden=true;
+    rec=null;clearInterval(recTimer);$("recBtn").setAttribute("aria-pressed","false");$("recTxt").textContent="เริ่มอัด";$("recTime").textContent="00:00";
+  };
+  rec.start(250);recStart=performance.now();
+  $("recBtn").setAttribute("aria-pressed","true");$("recTxt").textContent="หยุดอัด";
+  recTimer=setInterval(()=>{$("recTime").textContent=fmtT((performance.now()-recStart)/1000);},250);
+}
+const fmtT=s=>String(Math.floor(s/60)).padStart(2,"0")+":"+String(Math.floor(s%60)).padStart(2,"0");
+$("recBtn").onclick=toggleRec;
+
+/* ---------- visualizer & meters ---------- */
+function startViz(){
+  const cv=$("scope"),c2=cv.getContext("2d");
+  const css=getComputedStyle(document.documentElement),AMB=css.getPropertyValue("--amber").trim(),INK=css.getPropertyValue("--ink").trim(),GRID="#2a2418";
+  const fbin=new Uint8Array(A.outAn.frequencyBinCount),tOut=new Float32Array(A.outAn.fftSize),tIn=new Float32Array(A.inAn.fftSize);
+  const hold={in:-90,out:-90},clipT={in:0,out:0};
+  let lastLat=0;
+  function meter(buf,key){
+    let pk=0,sq=0;for(let i=0;i<buf.length;i++){const a=Math.abs(buf[i]);if(a>pk)pk=a;sq+=buf[i]*buf[i];}
+    const rms=20*Math.log10(Math.sqrt(sq/buf.length)+1e-9),pdb=20*Math.log10(pk+1e-9);
+    hold[key]=Math.max(pdb,hold[key]-0.6);
+    const pos=d=>clamp((d+60)/60,0,1)*100+"%";
+    $(key==="in"?"mIn":"mOut").style.clipPath=`inset(0 ${100-parseFloat(pos(rms))}% 0 0)`;
+    $(key==="in"?"mIn":"mOut").style.width="100%";
+    $(key==="in"?"hIn":"hOut").style.left=`calc(${pos(hold[key])} - 2px)`;
+    if(pk>=0.99)clipT[key]=performance.now();
+    $(key==="in"?"cIn":"cOut").classList.toggle("hot",performance.now()-clipT[key]<1200);
+    return hold[key];
+  }
+  function frame(){
+    const w=cv.clientWidth,h=cv.clientHeight,dpr=window.devicePixelRatio||1;
+    if(cv.width!==Math.round(w*dpr)){cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);}
+    c2.setTransform(dpr,0,0,dpr,0,0);c2.clearRect(0,0,w,h);
+    // grid: 100 Hz, 1k, 10k
+    const nyq=A.ctx.sampleRate/2,fx=f=>Math.log(f/30)/Math.log(nyq/30)*w;
+    c2.strokeStyle=GRID;c2.lineWidth=1;c2.fillStyle="#6b5a3a";c2.font="10px IBM Plex Mono, monospace";
+    [100,1000,10000].forEach(f=>{const x=Math.round(fx(f))+0.5;c2.beginPath();c2.moveTo(x,0);c2.lineTo(x,h);c2.stroke();c2.fillText(f>=1000?f/1000+"k":f,x+3,h-4);});
+    A.outAn.getByteFrequencyData(fbin);
+    c2.beginPath();c2.moveTo(0,h);
+    for(let x=0;x<w;x+=2){const f=30*Math.pow(nyq/30,x/w),b=Math.min(fbin.length-1,Math.round(f/nyq*fbin.length));c2.lineTo(x,h-fbin[b]/255*(h-14));}
+    c2.lineTo(w,h);c2.closePath();c2.fillStyle="rgba(240,162,59,.22)";c2.fill();c2.strokeStyle=AMB;c2.lineWidth=1.2;c2.stroke();
+    A.outAn.getFloatTimeDomainData(tOut);
+    c2.beginPath();c2.strokeStyle=INK;c2.globalAlpha=.55;
+    for(let i=0;i<tOut.length;i+=4){const x=i/tOut.length*w,y=h*0.42-tOut[i]*h*0.38;i?c2.lineTo(x,y):c2.moveTo(x,y);}
+    c2.stroke();c2.globalAlpha=1;
+    A.inAn.getFloatTimeDomainData(tIn);
+    meter(tIn,"in");const po=meter(tOut,"out");
+    const now=performance.now();
+    if(now-lastLat>400){lastLat=now;
+      $("peakTxt").textContent=po<-89?"-∞ dB":po.toFixed(1)+" dB";
+      let lat=((A.ctx.baseLatency||0)+(A.ctx.outputLatency||0))*1000;if(S.pitch.on&&!bypassed)lat+=S.pitch.win/2;
+      $("latLcd").innerHTML=`<b>LAT</b> ${lat.toFixed(1)} ms <b>SR</b> ${(A.ctx.sampleRate/1000).toFixed(1)}k`;
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- keyboard ---------- */
+document.addEventListener("keydown",e=>{
+  const tag=(e.target.tagName||"").toLowerCase();
+  if(tag==="input"||tag==="select"||tag==="textarea"||e.ctrlKey||e.metaKey||e.altKey)return;
+  if(/^[0-9]$/.test(e.key)){const i=e.key==="0"?9:+e.key-1;if(i<allPresets().length)loadPreset(i);e.preventDefault();}
+  else if(e.code==="Space"){if(e.target.classList&&e.target.classList.contains("knob")||tag==="button")return;setBypass(!bypassed);e.preventDefault();}
+  else if(e.key==="m"||e.key==="M"){setMonitor(!monitor);}
+  else if(e.key==="h"||e.key==="H"){setHear(!S.hear.on);}
+  else if(e.key==="g"||e.key==="G"){toggleGame();}
+  else if(e.key==="r"||e.key==="R"){toggleRec();}
+});
+
+/* ---------- hardware & drivers (desktop app only: window.vox comes from preload.js) ---------- */
+const VOX=window.vox;
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>"&#"+c.charCodeAt(0)+";");
+const VENDORS={"10EC":"Realtek","1002":"AMD","1022":"AMD","8086":"Intel","8087":"Intel","10DE":"NVIDIA","1106":"VIA","14F1":"Conexant","111D":"IDT",
+  "1102":"Creative","041E":"Creative","13F6":"C-Media","0D8C":"C-Media","046D":"Logitech","1532":"Razer","0951":"HyperX","03F0":"HyperX","1B1C":"Corsair",
+  "045E":"Microsoft","1038":"SteelSeries","1395":"EPOS","0B05":"ASUS","1043":"ASUS","1458":"Gigabyte","1462":"MSI","1849":"ASRock","17AA":"Lenovo",
+  "103C":"HP","1028":"Dell","1025":"Acer","144D":"Samsung","1D72":"Xiaomi","1179":"Toshiba","152D":"Quanta","17C0":"Medion","19DA":"Zotac","0A12":"Bluetooth (CSR)"};
+const PROBLEMS={1:"ตั้งค่าอุปกรณ์ไม่ถูกต้อง (Code 1) ติดตั้งไดรเวอร์ใหม่",3:"ไดรเวอร์เสียหายหรือหน่วยความจำไม่พอ (Code 3)",
+  10:"อุปกรณ์เริ่มทำงานไม่ได้ (Code 10) ลองรีสตาร์ตอุปกรณ์ ถ้ายังไม่หายให้อัปเดตไดรเวอร์",14:"ต้องรีสตาร์ตเครื่องก่อนอุปกรณ์จะใช้ได้ (Code 14)",
+  18:"ต้องติดตั้งไดรเวอร์ใหม่ (Code 18)",19:"ข้อมูลไดรเวอร์ในรีจิสทรีเสีย (Code 19) ติดตั้งไดรเวอร์ใหม่",21:"Windows กำลังถอดอุปกรณ์ออก (Code 21)",
+  22:"อุปกรณ์ถูกปิดใช้งาน (Code 22)",24:"ไม่พบอุปกรณ์หรือไดรเวอร์ไม่ครบ (Code 24)",28:"ยังไม่ได้ติดตั้งไดรเวอร์ (Code 28)",
+  31:"ไดรเวอร์โหลดไม่ได้ (Code 31) ติดตั้งไดรเวอร์ใหม่",37:"ไดรเวอร์เริ่มทำงานไม่ได้ (Code 37)",39:"ไดรเวอร์เสียหายหรือหายไป (Code 39)",
+  43:"Windows หยุดอุปกรณ์เพราะรายงานปัญหา (Code 43) ถอดแล้วเสียบใหม่",45:"อุปกรณ์ไม่ได้เชื่อมต่ออยู่ (Code 45)",52:"ลายเซ็นไดรเวอร์ไม่ผ่าน (Code 52)"};
+const EP_STATE={1:["พร้อมใช้","ok"],2:["ปิดใช้งานอยู่","err"],4:["ไม่พบ","off"],8:["ไม่ได้เสียบ","off"]};
+const GENERIC_INF=["hdaudio.inf"];
+let drv={hw:[],eps:[],wu:null,wuBusy:false,scanning:false,busy:""};
+
+function idInfo(hwids){
+  const h=(hwids&&hwids[0]||"").toUpperCase();
+  const v=(h.match(/(?:VEN|VID)_([0-9A-F]{4})/)||[])[1],dv=(h.match(/(?:DEV|PID)_([0-9A-F]{4})/)||[])[1],sub=(h.match(/SUBSYS_([0-9A-F]{4})/)||[])[1];
+  return {vendor:VENDORS[v]||(v?"VEN "+v:""),vid:v,dev:dv,board:sub&&sub!==v?VENDORS[sub]||"":"",bus:h.split("\\")[0]};
+}
+function epLabel(e){return e.name+(e.dev?" ("+e.dev+")":"");}
+function epUsing(e){
+  const sel=e.flow==="in"?$("inSel"):$("outSel");
+  if(e.flow==="in"&&!stream)return false;
+  const o=sel.selectedOptions[0];
+  if(!o||!o.value)return e.isDefault;
+  return o.textContent===epLabel(e);
+}
+function wuFor(d){
+  if(!drv.wu)return [];
+  const ids=(d.hwids||[]).map(x=>x.toLowerCase());
+  return drv.wu.filter(u=>u.hwid&&ids.some(i=>i===u.hwid.toLowerCase()||i.startsWith(u.hwid.toLowerCase()+"&")));
+}
+function advice(d){
+  const out=[];
+  if(d.problem&&d.problem!==0)out.push({bad:true,t:PROBLEMS[d.problem]||"อุปกรณ์มีปัญหา (Code "+d.problem+")"});
+  else if(d.present&&d.status!=="OK"&&d.status!=="Unknown")out.push({bad:true,t:"สถานะ "+d.status});
+  const i=idInfo(d.hwids);
+  if(d.present&&GENERIC_INF.includes((d.inf||"").toLowerCase())&&i.bus==="HDAUDIO"&&i.vid!=="1002"&&i.vid!=="10DE")
+    out.push({t:"กำลังใช้ไดรเวอร์กลางของ Microsoft ไดรเวอร์จาก "+(i.vendor||"ผู้ผลิต")+" จะมีแผงควบคุม ตรวจจับแจ็คหน้า-หลัง และลดเสียงรบกวนได้ดีกว่า",
+      q:[i.vendor,i.vendor==="Realtek"&&i.dev?"ALC"+i.dev.replace(/^0/,""):"",i.board,"audio"].filter(Boolean).join(" ")});
+  if(d.present&&d.date&&!d.problem&&+d.date.slice(0,4)<new Date().getFullYear()-6&&!GENERIC_INF.includes((d.inf||"").toLowerCase()))
+    out.push({t:"ไดรเวอร์นี้เก่า ("+d.date+") ลองกด \"ค้นหาไดรเวอร์\" ด้านล่าง"});
+  return out;
+}
+
+function renderDrv(){
+  if(!VOX)return;
+  const all=$("drvAll").checked,box=$("drvList"),busy=!!drv.busy;
+  const hw=drv.hw.filter(d=>all||d.present);
+  const eps=drv.eps.filter(e=>all||e.state!==4);
+  const byParent=new Map();
+  eps.forEach(e=>{const k=(e.parent||"").toUpperCase();if(!byParent.has(k))byParent.set(k,[]);byParent.get(k).push(e);});
+  const known=new Set(drv.hw.map(d=>d.id.toUpperCase()));
+  const orphan=eps.filter(e=>!known.has((e.parent||"").toUpperCase()));
+  const ready=f=>drv.eps.filter(e=>e.flow===f&&e.state===1).length;
+  const probs=drv.hw.filter(d=>d.present&&(d.problem||(d.status!=="OK"&&d.status!=="Unknown"))).length;
+  const unplugIn=drv.eps.filter(e=>e.flow==="in"&&e.state===8).length;
+  const wuN=drv.wu?drv.hw.reduce((n,d)=>n+wuFor(d).length,0):null;
+  $("drvChips").innerHTML=
+    `<span class="chip"><b>${drv.hw.filter(d=>d.present).length}</b>การ์ด/อุปกรณ์เสียง</span>`+
+    `<span class="chip ${ready("in")?"good":"warn"}"><b>${ready("in")}</b>ไมค์ที่พร้อมใช้</span>`+
+    `<span class="chip ${ready("out")?"good":"warn"}"><b>${ready("out")}</b>ช่องเสียงออกที่พร้อมใช้</span>`+
+    (probs?`<span class="chip bad"><b>${probs}</b>อุปกรณ์มีปัญหา</span>`:"")+
+    (!ready("in")&&unplugIn?`<span class="chip warn">ช่องเสียบไมค์/Line In ยังว่างอยู่ เสียบไมค์แล้วแอปจะเห็นเอง</span>`:"")+
+    (wuN!==null?`<span class="chip ${wuN?"warn":"good"}"><b>${wuN}</b>ไดรเวอร์ใหม่สำหรับอุปกรณ์เสียง</span>`:"");
+  if(!hw.length&&!orphan.length){box.innerHTML=`<p class="empty">${drv.scanning?"กำลังสแกนฮาร์ดแวร์…":"ไม่พบอุปกรณ์เสียงในเครื่องนี้"}</p>`;return;}
+  // Windows keeps one endpoint per jack per driver install, so unplugged jacks repeat; show each once with a count.
+  const epHtml=list=>{
+    const seen=new Map(),rows=[];
+    list.forEach(e=>{if(e.state===1||e.state===2){rows.push(e);return;}
+      const key=e.flow+"|"+e.name+"|"+e.state;if(seen.has(key))seen.get(key).n++;else{const r=Object.assign({n:1,src:e},e);seen.set(key,r);rows.push(r);}});
+    return !rows.length?"":`<ul class="eps">${rows.sort((a,b)=>a.state-b.state||a.flow.localeCompare(b.flow)).map(e=>{
+    const st=EP_STATE[e.state]||["state "+e.state,"off"],k=drv.eps.indexOf(e.src||e),using=e.state===1&&epUsing(e);
+    let act="";
+    if(e.state===1){
+      act=(using?"":`<button class="btn sm" data-ep="use" data-k="${k}" ${busy?"disabled":""}>${e.flow==="in"?"ใช้เป็นไมค์ในแอปนี้":"ส่งเสียงออกทางนี้"}</button>`)+
+        (e.isDefault?"":`<button class="btn sm" data-ep="default" data-k="${k}" ${busy?"disabled":""}>ตั้งเป็นค่าเริ่มต้นของ Windows</button>`);
+    }else if(e.state===2)act=`<button class="btn sm" data-ep="enable" data-k="${k}" ${busy?"disabled":""}>เปิดใช้งาน</button>`;
+    else if(e.state===8)act=`<span class="empty">${e.flow==="in"?"เสียบไมค์ที่ช่องนี้":"เสียบลำโพง/หูฟังที่ช่องนี้"} แล้วแอปจะเห็นเอง</span>`;
+    return `<li><span class="dir ${e.flow}">${e.flow==="in"?"IN":"OUT"}</span><span class="en">${esc(e.name)}${e.n>1?' <span class="empty">×'+e.n+"</span>":""}</span>`+
+      `<span class="st ${st[1]}">${st[0]}</span>${e.isDefault?'<span class="def">ค่าเริ่มต้น</span>':""}${using?'<span class="using">● ใช้อยู่ในแอปนี้</span>':""}${act}</li>`;}).join("")}</ul>`;};
+  box.innerHTML=hw.map(d=>{
+    const i=idInfo(d.hwids),di=drv.hw.indexOf(d);
+    const pill=!d.present?'<span class="pill off">ถอดออกแล้ว</span>':d.problem===22?'<span class="pill err">ปิดใช้งาน</span>':
+      (d.problem||d.status!=="OK")?'<span class="pill err">มีปัญหา</span>':'<span class="pill ok">ทำงานปกติ</span>';
+    const adv=advice(d).map(a=>`<div class="advice${a.bad?" bad":""}">${esc(a.t)}${a.q?` <button class="btn sm" data-q="${esc(a.q)}">ค้นหาไดรเวอร์ ${esc(a.q)}</button>`:""}</div>`).join("");
+    const ups=wuFor(d).map(u=>`<div class="advice">มีไดรเวอร์ใหม่จาก Windows Update: ${esc(u.prov)} ${esc(u.date||"")} <button class="btn sm main" data-wu="${esc(u.id)}" ${busy?"disabled":""}>ติดตั้ง</button></div>`).join("");
+    const acts=!d.present?"":
+      `<button class="btn sm" data-dev="restart" data-k="${di}" ${busy?"disabled":""}>รีสตาร์ตอุปกรณ์</button>`+
+      (d.problem===22?`<button class="btn sm" data-dev="enable" data-k="${di}" ${busy?"disabled":""}>เปิดใช้งาน</button>`
+        :`<button class="btn sm" data-dev="disable" data-k="${di}" ${busy?"disabled":""}>ปิดใช้งาน</button>`)+
+      `<button class="btn sm" data-q="${esc((i.vendor&&!/^VEN /.test(i.vendor)?i.vendor+" ":"")+(d.name||"")+" "+((d.hwids&&d.hwids[0])||""))}">ค้นหาไดรเวอร์ทางเว็บ</button>`;
+    return `<div class="hw${d.present?"":" gone"}"><div class="hw-top"><span class="hw-name">${esc(d.name||d.id)}</span>`+
+      (i.vendor?`<span class="tag">${esc(i.vendor)}</span>`:"")+`<span class="tag">${esc(i.bus||d.cls)}</span>${pill}</div>`+
+      `<dl class="hw-dl"><div><dt>ไดรเวอร์จาก</dt><dd>${esc(d.prov||"—")}</dd></div><div><dt>เวอร์ชัน</dt><dd>${esc(d.ver||"—")}</dd></div>`+
+      `<div><dt>วันที่ไดรเวอร์</dt><dd>${esc(d.date||"—")}</dd></div><div><dt>ไฟล์ INF</dt><dd>${esc(d.inf||"—")}</dd></div>`+
+      `<div style="grid-column:1/-1"><dt>Hardware ID</dt><dd>${esc((d.hwids&&d.hwids[0])||d.id)}</dd></div></dl>`+
+      adv+ups+epHtml(byParent.get(d.id.toUpperCase())||[])+(acts?`<div class="hw-act">${acts}</div>`:"")+`</div>`;
+  }).join("")+(orphan.length?`<div class="hw"><div class="hw-top"><span class="hw-name">อุปกรณ์เสียงอื่นๆ</span><span class="tag">Bluetooth / เสมือน</span></div>${epHtml(orphan)}</div>`:"");
+}
+
+async function scanDrv(){
+  if(!VOX||drv.scanning)return;
+  drv.scanning=true;$("drvScan").disabled=true;$("drvInfo").innerHTML='<span class="spin"></span> กำลังสแกน';
+  try{const r=await VOX.scanDrivers();drv.hw=r.hw;drv.eps=r.eps;
+    $("drvInfo").textContent="สแกนเมื่อ "+new Date(r.at).toLocaleTimeString("th-TH")+" · "+(r.ms/1000).toFixed(1)+" วิ";}
+  catch(e){$("drvInfo").textContent="สแกนไม่สำเร็จ";setStatus("สแกนฮาร์ดแวร์ไม่ได้: "+e.message,true);}
+  drv.scanning=false;$("drvScan").disabled=false;renderDrv();renderGameOut();
+}
+let scanT=0;
+function scheduleScan(){clearTimeout(scanT);scanT=setTimeout(scanDrv,1500);}
+
+// Report the result of an action that may have gone through UAC.
+function report(r,okMsg){
+  if(r&&r.cancelled){setStatus("ยกเลิกแล้ว (ต้องกด \"ใช่\" ที่หน้าต่างขอสิทธิ์ผู้ดูแลระบบ)",true);return false;}
+  if(r&&r.ok){setStatus(okMsg+(r.reboot?" · ต้องรีสตาร์ตเครื่องเพื่อให้มีผลครบ":""));return true;}
+  const last=r&&(r.error||(r.out||"").split(/\r?\n/).filter(Boolean).slice(-2).join(" "));
+  setStatus("ไม่สำเร็จ"+(last?": "+last:""),true);return false;
+}
+async function busyRun(label,fn){
+  if(drv.busy)return;
+  drv.busy=label;renderDrv();renderWu();setStatus(label+"…");
+  try{await fn();}catch(e){setStatus(label+" ไม่สำเร็จ: "+e.message,true);}
+  drv.busy="";renderDrv();renderWu();
+}
+function renderWu(){
+  const box=$("wuBox");
+  if(drv.wuBusy){box.innerHTML='<p class="empty"><span class="spin"></span> กำลังค้นหาจาก Windows Update… ใช้เวลาประมาณ 30 วินาทีถึง 2 นาที</p>';return;}
+  if(!drv.wu){box.innerHTML="";return;}
+  const audio=new Set(drv.hw.flatMap(d=>wuFor(d)).map(u=>u.id));
+  const row=u=>`<li class="${audio.has(u.id)?"match":""}"><span class="wt">${esc(u.model||u.title)}<span class="wm">${esc(u.prov||"")} · ${esc(u.date||"")} · ${esc(u.hwid||"")}${u.size?" · "+Math.max(1,Math.round(u.size/1024))+" KB":""}</span></span>`+
+    `<button class="btn sm${audio.has(u.id)?" main":""}" data-wu="${esc(u.id)}" ${drv.busy?"disabled":""}>ติดตั้ง</button></li>`;
+  const mine=drv.wu.filter(u=>audio.has(u.id)),rest=drv.wu.filter(u=>!audio.has(u.id));
+  box.innerHTML=(mine.length?`<ul class="wu-list">${mine.map(row).join("")}</ul>`
+      :`<p class="note">Windows Update ไม่มีไดรเวอร์ใหม่กว่าสำหรับอุปกรณ์เสียงในเครื่องนี้ ถ้าต้องการไดรเวอร์ของผู้ผลิต ให้กด "ค้นหาไดรเวอร์ทางเว็บ" ที่การ์ดเสียง แล้วแตกไฟล์และกด "ติดตั้งจากไฟล์ .inf"</p>`)+
+    (rest.length?`<details${box.querySelector("details[open]")?" open":""}><summary>ไดรเวอร์อื่นที่ Windows Update มีให้เครื่องนี้ (${rest.length})</summary><ul class="wu-list">${rest.map(row).join("")}</ul></details>`:"");
+}
+
+// Maps a Windows endpoint to the matching Chromium device (Chromium only exposes hashed ids, so match on the label).
+async function findChromeDevice(e){
+  const kind=e.flow==="in"?"audioinput":"audiooutput",label=epLabel(e);
+  const find=ds=>ds.find(d=>d.kind===kind&&d.label===label)||ds.find(d=>d.kind===kind&&d.label.startsWith(e.name+" ("));
+  let dev=find(await navigator.mediaDevices.enumerateDevices());
+  if(!dev){ // labels can be blank until the first getUserMedia
+    try{(await navigator.mediaDevices.getUserMedia({audio:true})).getTracks().forEach(t=>t.stop());}catch(err){}
+    dev=find(await navigator.mediaDevices.enumerateDevices());
+  }
+  return dev||null;
+}
+async function useEndpoint(e){
+  const kind=e.flow==="in"?"audioinput":"audiooutput",label=epLabel(e);
+  const dev=await findChromeDevice(e);
+  if(!dev){setStatus("ระบบเสียงของแอปยังไม่เห็น \""+label+"\" กดสแกนใหม่แล้วลองอีกครั้ง",true);return;}
+  await listDevices();
+  if(kind==="audioinput"){$("inSel").value=dev.deviceId;try{await ensureAudio();await openMic();}catch(err){micError(err);}}
+  else{$("outSel").value=dev.deviceId;await applyOutput();}
+  renderDrv();
+}
+
+if(VOX){
+  $("drvScan").onclick=scanDrv;
+  $("drvAll").onchange=renderDrv;
+  document.querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>VOX.openTool(b.dataset.tool));
+  $("hwRescan").onclick=()=>busyRun("กำลังตรวจหาฮาร์ดแวร์ใหม่",async()=>{if(report(await VOX.rescanHardware(),"ตรวจหาฮาร์ดแวร์เสร็จแล้ว"))await scanDrv();});
+  $("drvList").addEventListener("click",ev=>{
+    const b=ev.target.closest("button");if(!b)return;
+    if(b.dataset.q){VOX.searchDriver(b.dataset.q);return;}
+    if(b.dataset.wu){installWu([b.dataset.wu]);return;}
+    if(b.dataset.dev){
+      const d=drv.hw[+b.dataset.k],a=b.dataset.dev;if(!d)return;
+      if(a==="disable"&&!confirm("ปิดใช้งาน \""+d.name+"\"? เสียงจากอุปกรณ์นี้จะหายไปจนกว่าจะเปิดใหม่"))return;
+      const word={restart:"รีสตาร์ต",enable:"เปิดใช้งาน",disable:"ปิดใช้งาน"}[a];
+      busyRun("กำลัง"+word+" "+d.name,async()=>{if(report(await VOX.deviceAction(d.id,a),word+" "+d.name+" แล้ว"))await scanDrv();});
+      return;
+    }
+    if(b.dataset.ep){
+      const e=drv.eps[+b.dataset.k],a=b.dataset.ep;if(!e)return;
+      if(a==="use")busyRun("กำลังเชื่อมต่อ "+e.name,()=>useEndpoint(e));
+      else if(a==="default")busyRun("กำลังตั้งค่าเริ่มต้น",async()=>{if(report(await VOX.setDefaultEndpoint(e.ep),"ตั้ง \""+epLabel(e)+"\" เป็นค่าเริ่มต้นของ Windows แล้ว"))await scanDrv();});
+      else if(a==="enable")busyRun("กำลังเปิดใช้งาน "+e.name,async()=>{if(report(await VOX.enableEndpoint(e.ep),"เปิดใช้งาน \""+epLabel(e)+"\" แล้ว")){await scanDrv();await listDevices();}});
+    }
+  });
+
+  async function installWu(ids){
+    const u=(drv.wu||[]).find(x=>x.id===ids[0]);
+    await busyRun("กำลังดาวน์โหลดและติดตั้งไดรเวอร์"+(u?" "+(u.model||u.title):""),async()=>{
+      const r=await VOX.wuInstall(ids);
+      if(report(r,"ติดตั้งไดรเวอร์เสร็จแล้ว")){drv.wu=drv.wu.filter(x=>!ids.includes(x.id));await scanDrv();}
+    });
+  }
+  $("wuBox").addEventListener("click",ev=>{const b=ev.target.closest("button[data-wu]");if(b)installWu([b.dataset.wu]);});
+  $("wuBtn").onclick=async()=>{
+    if(drv.wuBusy)return;
+    drv.wuBusy=true;$("wuBtn").disabled=true;renderWu();
+    const r=await VOX.wuSearch();
+    drv.wuBusy=false;$("wuBtn").disabled=false;
+    if(r.ok){drv.wu=r.list;setStatus("Windows Update พบไดรเวอร์ที่ยังไม่ได้ติดตั้ง "+r.list.length+" รายการ");}
+    else setStatus("ค้นหาจาก Windows Update ไม่ได้: "+r.error,true);
+    renderWu();renderDrv();
+  };
+  $("infBtn").onclick=()=>busyRun("กำลังติดตั้งไดรเวอร์จากไฟล์",async()=>{
+    const r=await VOX.installInf();
+    if(r.noFile){setStatus("ยังไม่ได้เลือกไฟล์");return;}
+    if(report(r,"ติดตั้งไดรเวอร์จากไฟล์แล้ว"))await scanDrv();
+  });
+
+  VOX.onHotkey(a=>{
+    if(a.preset!==undefined){if(a.preset<allPresets().length)loadPreset(a.preset);}
+    else if(a.game)toggleGame();else if(a.hear)setHear(!S.hear.on);else if(a.bypass)setBypass(!bypassed);else if(a.monitor)setMonitor(!monitor);else if(a.record)toggleRec();
+  });
+  VOX.info().then(i=>{document.querySelector(".brand small").textContent="v"+i.version;});
+  listDevices();scanDrv();
+}else{
+  document.querySelectorAll(".app-only").forEach(e=>e.hidden=true);
+  $("drvPanel").querySelector(".pb").innerHTML='<p class="empty">การสแกนไดรเวอร์และเชื่อมต่ออุปกรณ์ใช้ได้ในโปรแกรม VoxRack บน Windows เท่านั้น</p>';
+}
+
+/* ---------- game headphones: game -> VB-Cable -> stereo EQ chain -> real headphones ---------- */
+const GKNOBS=[
+  {k:"bass",l:"เบส",min:-12,max:15,step:0.5,bi:0,f:fDb},
+  {k:"mud",l:"ลดเสียงอู้",min:0,max:10,step:0.5,f:v=>(v?"-":"")+v.toFixed(1)+" dB"},
+  {k:"steps",l:"เสียงเท้า",min:-6,max:12,step:0.5,bi:0,f:fDb},
+  {k:"treble",l:"ความใส",min:-8,max:10,step:0.5,bi:0,f:fDb},
+  {k:"comp",l:"ดึงเสียงเบา",min:0,max:1,step:0.01,f:fPct},
+  {k:"width",l:"ความกว้าง",min:0,max:2,step:0.01,bi:1,f:v=>Math.round(v*100)+"%"},
+  {k:"vol",l:"ระดับเสียง",min:-24,max:12,step:0.5,bi:0,f:fDb},
+  {k:"ceil",l:"เพดานเสียง",min:-20,max:0,step:1,f:v=>v+" dB"}];
+// Profiles only touch tone; volume and ceiling stay where the player set them.
+const GPROFILES={
+  fps:{n:"FPS เสียงเท้าชัด",s:{bass:-2,mud:3,steps:7,treble:2,comp:0.7,width:1.3}},
+  balanced:{n:"สมดุล (แนวหูฟังแพง)",s:{bass:5,mud:2.5,steps:2,treble:1.5,comp:0.2,width:1.1}},
+  bass:{n:"เบสหนัก",s:{bass:10,mud:2,steps:0,treble:2,comp:0.3,width:1.15}},
+  raw:{n:"เสียงดิบ",s:{bass:0,mud:0,steps:0,treble:0,comp:0,width:1}}};
+let G=Object.assign({profile:"fps",vol:0,ceil:-3,outEp:""},GPROFILES.fps.s);
+try{Object.assign(G,JSON.parse(localStorage.getItem("voxrack.game")||"{}"));}catch(e){}
+const saveG=()=>{try{localStorage.setItem("voxrack.game",JSON.stringify(G));}catch(e){}};
+const GUI={};
+let game={on:false,stream:null,src:null,prevEp:null,latT:0};
+const isCable=e=>/VB-Audio|^CABLE /i.test((e.dev||"")+" "+(e.name||""))||/^CABLE /i.test(e.name||"");
+
+function applyGame(){
+  if(!A)return;
+  const t=A.ctx.currentTime,set=(p,v)=>p.setTargetAtTime(v,t,0.02);
+  // Headroom so boosts don't run straight into the limiter.
+  set(A.gIn.gain,db2g(-0.7*Math.max(0,G.bass,G.steps,G.treble)));
+  set(A.gBass.gain,G.bass);set(A.gMud.gain,-G.mud);set(A.gSteps.gain,G.steps);set(A.gTreble.gain,G.treble);
+  set(A.gComp.threshold,-6-30*G.comp);set(A.gComp.ratio,1+5*G.comp);
+  const a=(1+G.width)/2,b=(1-G.width)/2;
+  set(A.gLL.gain,a);set(A.gRR.gain,a);set(A.gLR.gain,b);set(A.gRL.gain,b);
+  set(A.gVol.gain,db2g(G.vol));set(A.gLimIn.gain,1/db2g(G.ceil));set(A.gLimOut.gain,db2g(G.ceil));
+}
+function buildGame(){
+  const seg=$("gameSeg");
+  for(const id in GPROFILES){const b=document.createElement("button");b.type="button";b.textContent=GPROFILES[id].n;b.dataset.p=id;
+    b.onclick=()=>{Object.assign(G,GPROFILES[id].s,{profile:id});saveG();refreshGame();applyGame();};seg.appendChild(b);}
+  GKNOBS.forEach(kd=>{
+    const kn=Knob(Object.assign({},kd,{value:G[kd.k],def:kd.k==="ceil"?-3:kd.k==="width"?1:0,
+      onChange:v=>{G[kd.k]=v;if(!["vol","ceil"].includes(kd.k))G.profile="custom";saveG();applyGame();refreshSeg();}}));
+    $("gameKnobs").appendChild(kn.el);GUI[kd.k]=kn;});
+  refreshGame();
+}
+function refreshSeg(){$("gameSeg").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.p===G.profile));}
+function refreshGame(){GKNOBS.forEach(kd=>GUI[kd.k].set(G[kd.k]));refreshSeg();}
+
+function gameOutputs(){return drv.eps.filter(e=>e.flow==="out"&&e.state===1&&!isCable(e));}
+function renderGameOut(){
+  const sel=$("gameOut"),cur=G.outEp;sel.innerHTML='<option value="">เลือกอัตโนมัติ</option>';
+  gameOutputs().forEach(e=>{const o=document.createElement("option");o.value=e.ep;o.textContent=epLabel(e);sel.appendChild(o);});
+  sel.value=[...sel.options].some(o=>o.value===cur)?cur:"";
+}
+function pickHeadphones(){
+  const outs=gameOutputs();
+  return outs.find(e=>e.ep===G.outEp)||outs.find(e=>e.ep===game.prevEp)||outs.find(e=>e.isDefault)||
+    outs.find(e=>/head|หูฟัง/i.test(e.name))||outs[0]||null;
+}
+function showSetup(html){const s=$("gameSetup");s.hidden=!html;s.innerHTML=html||"";}
+function setGameUI(on){
+  game.on=on;$("gameBtn").setAttribute("aria-pressed",on);$("gameTxt").textContent=on?"ปิดโหมดเกม":"เปิดโหมดเกม";
+  $("gamePanel").classList.toggle("on",on);$("gameLat").hidden=!on;
+}
+
+async function gameOn(){
+  if(!drv.eps.length)await scanDrv();
+  const cIn=drv.eps.find(e=>e.flow==="out"&&isCable(e)),cOut=drv.eps.find(e=>e.flow==="in"&&isCable(e));
+  if(!cIn||!cOut){
+    showSetup(`<div><b>ต้องติดตั้ง VB-Audio Virtual Cable (ฟรี) ก่อน</b> เป็นสายเสมือนที่ทำให้ VoxRack รับเสียงเกมมาปรับได้
+      <ol><li>กดดาวน์โหลด แตกไฟล์ zip แล้วคลิกขวา <b>VBCABLE_Setup_x64.exe</b> → Run as administrator → Install</li>
+      <li>รีสตาร์ตเครื่อง แล้วกด "เปิดโหมดเกม" อีกครั้ง VoxRack จะตั้งค่าที่เหลือให้เอง</li></ol></div>
+      <button class="btn sm main" id="cableDl">ดาวน์โหลด VB-Cable</button><button class="btn sm" id="cableRescan">ติดตั้งแล้ว สแกนใหม่</button>`);
+    $("cableDl").onclick=()=>VOX.openUrl("https://vb-audio.com/Cable/");
+    $("cableRescan").onclick=async()=>{await scanDrv();showSetup("");gameOn();};
+    setStatus("ยังไม่มี VB-Cable ในเครื่องนี้",true);return;
+  }
+  for(const e of [cIn,cOut])if(e.state===2){const r=await VOX.enableEndpoint(e.ep);if(!report(r,"เปิดใช้งาน "+e.name+" แล้ว"))return;}
+  if(cIn.state===2||cOut.state===2){await scanDrv();return gameOn();}
+  const hp=pickHeadphones();
+  if(!hp){setStatus("ไม่พบหูฟังหรือลำโพงที่จะใช้ฟัง เสียบหูฟังก่อนแล้วลองอีกครั้ง",true);return;}
+  showSetup("");
+  await ensureAudio();
+  const hpDev=await findChromeDevice(hp),srcDev=await findChromeDevice(cOut);
+  if(!hpDev||!srcDev){setStatus("ระบบเสียงของแอปยังไม่เห็น "+(hpDev?"CABLE Output":epLabel(hp))+" กดสแกนใหม่แล้วลองอีกครั้ง",true);return;}
+  // Send the app to the headphones first: if it played to the default device after that became the cable, it would loop into itself.
+  $("outSel").value=hpDev.deviceId;
+  if(!await applyOutput())return;
+  try{
+    game.stream=await navigator.mediaDevices.getUserMedia({audio:{deviceId:{exact:srcDev.deviceId},channelCount:2,
+      echoCancellation:false,noiseSuppression:false,autoGainControl:false,latency:0}});
+  }catch(e){setStatus("เปิดสาย CABLE Output ไม่ได้: "+(e.message||e.name),true);return;}
+  game.src=A.ctx.createMediaStreamSource(game.stream);game.src.connect(A.gIn);
+  const prev=drv.eps.find(e=>e.flow==="out"&&e.isDefault);
+  game.prevEp=prev&&!isCable(prev)?prev.ep:hp.ep;
+  if(!prev||prev.ep!==cIn.ep){
+    const r=await VOX.setDefaultEndpoint(cIn.ep);
+    if(!report(r,"")){gameOff(true);return;}
+  }
+  VOX.restoreOnQuit(game.prevEp);
+  setGameUI(true);
+  setStatus("โหมดเกมเปิดแล้ว: เสียงเกม → VoxRack → "+epLabel(hp)+" · ถ้าเกมยังไม่มีเสียง ให้ปิดแล้วเปิดเกมใหม่ หรือเลือกอุปกรณ์เสียงในเกมเป็น Default / CABLE Input");
+  scanDrv();
+}
+async function gameOff(silent){
+  if(game.src){game.src.disconnect();game.src=null;}
+  if(game.stream){game.stream.getTracks().forEach(t=>t.stop());game.stream=null;}
+  if(game.prevEp){const r=await VOX.setDefaultEndpoint(game.prevEp);if(!silent)report(r,"ปิดโหมดเกมแล้ว เสียง Windows กลับไปที่อุปกรณ์เดิม");}
+  game.prevEp=null;VOX.restoreOnQuit(null);setGameUI(false);scanDrv();
+}
+function toggleGame(){
+  if(!VOX){setStatus("โหมดเกมใช้ได้ในโปรแกรม VoxRack บน Windows เท่านั้น",true);return;}
+  if(drv.busy)return;
+  busyRun(game.on?"กำลังปิดโหมดเกม":"กำลังเปิดโหมดเกม",()=>game.on?gameOff():gameOn());
+}
+$("gameBtn").onclick=toggleGame;
+$("gameOut").onchange=async()=>{
+  G.outEp=$("gameOut").value;saveG();
+  if(game.on){const hp=pickHeadphones(),d=hp&&await findChromeDevice(hp);if(d){$("outSel").value=d.deviceId;await applyOutput();}}
+};
+setInterval(()=>{
+  if(!game.on||!A)return;
+  const tr=game.stream&&game.stream.getAudioTracks()[0],inLat=tr&&tr.getSettings().latency||0;
+  const ms=((A.ctx.baseLatency||0)+(A.ctx.outputLatency||0)+inLat)*1000;
+  $("gameLat").innerHTML=`<b>DELAY</b> ~${ms.toFixed(0)} ms`;
+},1000);
+buildGame();
+
+/* ---------- boot ---------- */
+buildRack();MODS.forEach(m=>refresh(m.id));renderPresets();
+if(!navigator.mediaDevices||!window.isSecureContext&&location.protocol!=="file:")
+  setStatus("ต้องเปิดไฟล์นี้ใน Chrome หรือ Edge โดยตรง (ดับเบิลคลิกไฟล์) เพื่อใช้ไมค์",true);
+</script>
+</body>
+</html>
